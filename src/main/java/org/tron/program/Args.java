@@ -8,21 +8,31 @@ import java.util.List;
 
 public class Args {
 
-  private final static Args INSTANCE = new Args();
+  private static final Args INSTANCE = new Args();
 
 
-  @Parameter(names = {"-d", "--output-directory"}, description = "Directory")
+  @Parameter(names = {"-d", "--output-directory"}, description = "set directory")
   private String outputDirectory = new String("");
 
-  @Parameter(names = {"-h", "--help"}, help = true, description = "Directory")
+  @Parameter(names = {"-h", "--help"}, help = true, description = "help view")
   private boolean help = false;
+
+  @Parameter(names = {"-dev", "--develop"}, help = true, description = "develop model")
+  private boolean develop = false;
+
+  @Parameter(names = {"-wit", "--witness"}, help = true, description = "witness model")
+  private boolean witness = false;
 
   @Parameter(description = "-seed-nodes")
   private List<String> seedNodes = new ArrayList<>();
 
+
   private Args() {
   }
 
+  /**
+   * set param value form args.
+   */
   public static void setParam(String[] args) {
     JCommander.newBuilder()
         .addObject(INSTANCE)
@@ -34,6 +44,9 @@ public class Args {
     return INSTANCE;
   }
 
+  /**
+   * get directory with separator.
+   */
   public String getOutputDirectory() {
     if (outputDirectory != "" && !outputDirectory.endsWith(File.separator)) {
       return outputDirectory + File.separator;
@@ -47,5 +60,13 @@ public class Args {
 
   public List<String> getSeedNodes() {
     return seedNodes;
+  }
+
+  public boolean isDevelop() {
+    return develop;
+  }
+
+  public boolean isWitness() {
+    return witness;
   }
 }

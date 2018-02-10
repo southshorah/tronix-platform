@@ -15,6 +15,7 @@ import org.tron.core.db.BlockStore;
 import org.tron.core.db.Manager;
 import org.tron.core.net.message.BlockMessage;
 import org.tron.core.witness.BlockProductionCondition;
+import org.tron.program.Args;
 import org.tron.protos.Protocal;
 
 
@@ -115,11 +116,21 @@ public class WitnessService implements Service {
   }
 
   private BlockProductionCondition tryProduceBlock(String capture) {
-
+    Args args = Args.getInstance();
     long slot = getSlotAtTime(DateTime.now());
     if (slot == 0) {
       // todo capture error message
       return BlockProductionCondition.NOT_TIME_YET;
+    }
+    if (args.isDevelop()) { // develop model
+      if (args.isWitness()) { // witness is trou all produced.
+        DateTime scheduledTime = getSlotTime(slot);
+        Protocal.Block block = generateBlock(scheduledTime);
+        broadcastBlock(block);
+        return BlockProductionCondition.PRODUCED;
+      } else { // witness is trou never produced.
+        return BlockProductionCondition.NOT_MY_TURN;
+      }
     }
 
     ByteString scheduledWitness = db.getScheduledWitness(slot);
