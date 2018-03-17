@@ -11,6 +11,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javafx.util.Pair;
 import lombok.Getter;
@@ -200,6 +202,19 @@ public class Manager {
 
     this.initHeadBlock(Sha256Hash.wrap(this.dynamicPropertiesStore.getLatestBlockHeaderHash()));
     this.khaosDb.start(head);
+
+    Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(
+            () -> {
+              logger.error("******begin******");
+              accountStore.getAllAccounts().stream()
+                      .map(accountCapsule -> ByteArray.toHexString(accountCapsule.getAddress().toByteArray()) + ", " + accountCapsule.getBalance())
+                      .forEach(s -> logger.error("****** " + s));
+              logger.error("******end******");
+            },
+            10,
+            10,
+            TimeUnit.SECONDS
+    );
   }
 
   public BlockId getGenesisBlockId() {
