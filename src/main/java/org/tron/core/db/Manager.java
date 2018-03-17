@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import org.tron.common.storage.leveldb.LevelDbDataSourceImpl;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.DialogOptional;
+import org.tron.common.utils.RandomGenerator;
 import org.tron.common.utils.Sha256Hash;
 import org.tron.core.actuator.Actuator;
 import org.tron.core.actuator.ActuatorFactory;
@@ -105,6 +106,7 @@ public class Manager {
   private List<WitnessCapsule> wits = new ArrayList<>();
 
   // witness
+
   public List<WitnessCapsule> getWitnesses() {
     return this.wits;
   }
@@ -180,10 +182,9 @@ public class Manager {
     this.numHashCache = new LevelDbDataSourceImpl(
         Args.getInstance().getOutputDirectory(), "block" + "_NUM_HASH");
     this.numHashCache.initDB();
-
     this.khaosDb = new KhaosDatabase("block" + "_KDB");
-    this.pendingTrxs = new ArrayList<>();
 
+    this.pendingTrxs = new ArrayList<>();
     try {
       this.initGenesis();
     } catch (ContractValidateException e) {
@@ -199,7 +200,6 @@ public class Manager {
       logger.error(e.getMessage());
       System.exit(-1);
     }
-
     this.initHeadBlock(Sha256Hash.wrap(this.dynamicPropertiesStore.getLatestBlockHeaderHash()));
     this.khaosDb.start(head);
 
@@ -266,8 +266,8 @@ public class Manager {
     genesisBlockArg.getAssets().forEach(account -> {
       account.setAccountType("Normal");//to be set in conf
       final AccountCapsule accountCapsule = new AccountCapsule(account.getAccountName(),
-          account.getAccountType(),
           ByteString.copyFrom(account.getAddressBytes()),
+          account.getAccountType(),
           account.getBalance());
       this.accountStore.put(account.getAddressBytes(), accountCapsule);
     });
@@ -284,7 +284,7 @@ public class Manager {
       ByteString address = ByteString.copyFrom(keyAddress);
 
       final AccountCapsule accountCapsule = new AccountCapsule(
-          ByteString.EMPTY, AccountType.AssetIssue, address, 0L);
+          ByteString.EMPTY, address, AccountType.AssetIssue, 0L);
       final WitnessCapsule witnessCapsule = new WitnessCapsule(
           address, key.getVoteCount(), key.getUrl());
       witnessCapsule.setIsJobs(true);
@@ -404,11 +404,47 @@ public class Manager {
 
 
   /**
+   * validate witness schedule
+   */
+  private boolean validateWitnessSchedule(BlockCapsule block) {
+
+    ByteString witnessAddress = block.getInstance().getBlockHeader().getRawData()
+        .getWitnessAddress();
+    //to deal with other condition later
+    if (head.getBlockId().equals(block.getParentHash())) {
+      long slot = getSlotAtTime(block.getTimeStamp());
+      final ByteString scheduledWitness = getScheduledWitness(slot);
+      if (!scheduledWitness.equals(witnessAddress)) {
+        logger.warn(
+            "Witness is out of order, scheduledWitness[{}],blockWitnessAddress[{}],blockTimeStamp[{}],slot[{}]",
+            ByteArray.toHexString(scheduledWitness.toByteArray()),
+            ByteArray.toHexString(witnessAddress.toByteArray()), new DateTime(block.getTimeStamp()),
+            slot);
+        return false;
+      }
+    }
+
+    logger.debug("Validate witnessSchedule successfully,scheduledWitness:{}",
+        ByteArray.toHexString(witnessAddress.toByteArray()));
+    return true;
+  }
+
+  private synchronized void filterPendingTrx(List<TransactionCapsule> listTrx) {
+
+  }
+
+  /**
    * save a block.
    */
   public void pushBlock(final BlockCapsule block)
       throws ValidateSignatureException, ContractValidateException,
       ContractExeException, UnLinkedBlockException {
+
+    List<TransactionCapsule> pendingTrxsTmp = new LinkedList<>();
+    //TODO: optimize performance here.
+    pendingTrxsTmp.addAll(pendingTrxs);
+    pendingTrxs.clear();
+    dialog.reset();
 
     //todo: check block's validity
     if (!block.generatedByMyself) {
@@ -416,6 +452,12 @@ public class Manager {
         logger.info("The siganature is not validated.");
         //TODO: throw exception here.
         return;
+      }
+
+      try {
+        validateWitnessSchedule(block); // direct return ,need test
+      } catch (Exception ex) {
+        logger.error("validateWitnessSchedule error", ex);
       }
 
       if (!block.calcMerkleRoot().equals(block.getMerkleRoot())) {
@@ -449,11 +491,27 @@ public class Manager {
       }
     }
 
+    //filter trxs
+    pendingTrxsTmp.stream()
+        .filter(trx -> getTransactionStore().dbSource.getData(trx.getTransactionId().getBytes()) == null)
+        .forEach(trx -> {
+          try {
+            pushTransactions(trx);
+          } catch (ValidateSignatureException e) {
+            e.printStackTrace();
+          } catch (ContractValidateException e) {
+            e.printStackTrace();
+          } catch (ContractExeException e) {
+            e.printStackTrace();
+          }
+        });
+
     this.getBlockStore().dbSource.putData(block.getBlockId().getBytes(), block.getData());
     this.numHashCache.putData(ByteArray.fromLong(block.getNum()), block.getBlockId().getBytes());
     refreshHead(newBlock);
     logger.info("save block: " + newBlock);
   }
+
 
   private void refreshHead(BlockCapsule block) {
     this.head = block;
@@ -461,7 +519,9 @@ public class Manager {
         .saveLatestBlockHeaderHash(block.getBlockId().getByteString());
     this.dynamicPropertiesStore.saveLatestBlockHeaderNumber(block.getNum());
     this.dynamicPropertiesStore.saveLatestBlockHeaderTimestamp(block.getTimeStamp());
+    updateWitnessSchedule();
   }
+
 
   /**
    * Get the fork branch.
@@ -849,7 +909,7 @@ public class Manager {
         }
       }
     });
-    witnessCapsuleList.sort((a, b) -> (int) (b.getVoteCount() - a.getVoteCount()));
+    sortWitness(witnessCapsuleList);
     if (this.wits.size() > MAX_ACTIVE_WITNESS_NUM) {
       this.wits = witnessCapsuleList.subList(0, MAX_ACTIVE_WITNESS_NUM);
     }
@@ -859,6 +919,7 @@ public class Manager {
       this.witnessStore.put(witnessCapsule.getAddress().toByteArray(), witnessCapsule);
     });
   }
+
 
   /**
    * update wits sync to store.
@@ -870,7 +931,18 @@ public class Manager {
         wits.add(witnessCapsule);
       }
     });
-    wits.sort((a, b) -> (int) (b.getVoteCount() - a.getVoteCount()));
+    sortWitness(wits);
+  }
+
+
+  private void sortWitness(List<WitnessCapsule> list) {
+    list.sort((a, b) -> {
+      if (b.getVoteCount() != a.getVoteCount()) {
+        return (int) (b.getVoteCount() - a.getVoteCount());
+      } else {
+        return b.getAddress().hashCode() - a.getAddress().hashCode();
+      }
+    });
   }
 
   public AssetIssueStore getAssetIssueStore() {
@@ -880,4 +952,33 @@ public class Manager {
   public void setAssetIssueStore(AssetIssueStore assetIssueStore) {
     this.assetIssueStore = assetIssueStore;
   }
+
+  /**
+   * shuffle witnesses
+   */
+  private void updateWitnessSchedule() {
+    if (CollectionUtils.isEmpty(getWitnesses())) {
+      logger.warn("Witnesses is empty");
+      return;
+    }
+
+    if (getHeadBlockNum() != 0 && getHeadBlockNum() % getWitnesses().size() == 0) {
+      logger.info("updateWitnessSchedule number:{},HeadBlockTimeStamp:{}", getHeadBlockNum(),
+          getHeadBlockTimeStamp());
+      setShuffledWitnessStates(new RandomGenerator<WitnessCapsule>()
+          .shuffle(getWitnesses(), getHeadBlockTimeStamp()));
+
+      logger.debug(
+          "updateWitnessSchedule,before:{} ", getWitnessStringList(getWitnesses()).toString()
+              + ",\nafter:{} " + getWitnessStringList(getShuffledWitnessStates()));
+    }
+  }
+
+  private List<String> getWitnessStringList(List<WitnessCapsule> witnessStates) {
+    return witnessStates.stream()
+        .map(witnessCapsule -> ByteArray.toHexString(witnessCapsule.getAddress().toByteArray()))
+        .collect(Collectors.toList());
+  }
+
+
 }
