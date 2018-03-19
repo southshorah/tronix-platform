@@ -2,16 +2,9 @@ package org.tron.core.net.node;
 
 import com.google.common.collect.Iterables;
 import io.scalecube.transport.Address;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
+
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import javafx.util.Pair;
@@ -84,6 +77,7 @@ public class NodeImpl extends PeerConnectionDelegate implements Node {
   private final List<Sha256Hash> trxToAdvertise = new ArrayList<>();
 
   private final List<BlockId> blockToAdvertise = new ArrayList<>();
+  private Random random = new Random(System.currentTimeMillis());
 
   private static final Logger logger = LoggerFactory.getLogger("Node");
 
@@ -274,11 +268,17 @@ public class NodeImpl extends PeerConnectionDelegate implements Node {
           getActivePeer().stream()
               .filter(peer -> !peer.isNeedSyncFromUs())
               .forEach(peer -> {
-                peer.getAdvObjWeSpread().clear();
                 spread.entrySet().stream()
                     .filter(idToSpread ->
                         !peer.getAdvObjSpreadToUs().containsKey(idToSpread.getKey())
                             && !peer.getAdvObjWeSpread().containsKey(idToSpread.getKey()))
+                        .filter(e -> {
+                          if (e.getValue() == InventoryType.TRX) {
+                            return random.nextInt(20) < 5;
+                          } else {
+                            return true;
+                          }
+                        })
                     .forEach(idToSpread -> {
                       peer.getAdvObjWeSpread().put(idToSpread.getKey(), System.currentTimeMillis());
                       sendPackage.add(idToSpread, peer);

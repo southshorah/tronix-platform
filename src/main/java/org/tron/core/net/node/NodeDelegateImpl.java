@@ -76,20 +76,14 @@ public class NodeDelegateImpl implements NodeDelegate {
       dbManager.pushTransactions(trx);
     } catch (ContractValidateException e) {
       logger.info("Contract validate failed");
-<<<<<<< HEAD
       // TODO stores failed trans in db for inquiry.
       dbManager.getTransactionStore().put(trx.getTransactionId().getBytes(), trx);
-=======
->>>>>>> develop
       e.printStackTrace();
       throw new BadTransactionException();
     } catch (ContractExeException e) {
       logger.info("Contract execute failed");
-<<<<<<< HEAD
       // TODO stores failed trans in db for inquiry.
       dbManager.getTransactionStore().put(trx.getTransactionId().getBytes(), trx);
-=======
->>>>>>> develop
       e.printStackTrace();
       throw new BadTransactionException();
     } catch (ValidateSignatureException e) {

@@ -544,8 +544,8 @@ public class Manager {
 
     //filter trxs
     pendingTrxsTmp.stream()
-            .filter(trx -> !newBlock.getTransactions().stream().map(TransactionCapsule::getTransactionId).collect(Collectors.toSet()).contains(trx.getTransactionId()))
-      //  .filter(trx -> getTransactionStore().get(trx.getTransactionId().getBytes()) == null)
+//            .filter(trx -> !newBlock.getTransactions().stream().map(TransactionCapsule::getTransactionId).collect(Collectors.toSet()).contains(trx.getTransactionId()))
+        .filter(trx -> getTransactionStore().get(trx.getTransactionId().getBytes()) == null)
         .forEach(trx -> {
           try {
             pushTransactions(trx);
