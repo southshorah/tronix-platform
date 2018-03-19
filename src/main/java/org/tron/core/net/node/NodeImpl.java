@@ -197,6 +197,7 @@ public class NodeImpl extends PeerConnectionDelegate implements Node {
       return;
     }
     //TODO: here need to cache fresh message to let peer fetch these data not from DB
+      logger.error("**********msg id:" + msg.getMessageId());
     advObjToSpread.put(msg.getMessageId(), type);
   }
 
@@ -273,6 +274,7 @@ public class NodeImpl extends PeerConnectionDelegate implements Node {
           getActivePeer().stream()
               .filter(peer -> !peer.isNeedSyncFromUs())
               .forEach(peer -> {
+                peer.getAdvObjWeSpread().clear();
                 spread.entrySet().stream()
                     .filter(idToSpread ->
                         !peer.getAdvObjSpreadToUs().containsKey(idToSpread.getKey())

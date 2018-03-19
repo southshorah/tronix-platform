@@ -1,6 +1,8 @@
 package org.tron.core.db;
 
+import com.beust.jcommander.Strings;
 import com.carrotsearch.sizeof.RamUsageEstimator;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
@@ -19,6 +21,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -207,6 +210,7 @@ public class Manager {
             () -> {
               logger.error("******begin******");
               accountStore.getAllAccounts().stream()
+                      .sorted((a1, a2) -> ByteArray.toHexString(a1.getAddress().toByteArray()).compareToIgnoreCase(ByteArray.toHexString(a2.getAddress().toByteArray())))
                       .map(accountCapsule -> ByteArray.toHexString(accountCapsule.getAddress().toByteArray()) + ", " + accountCapsule.getBalance())
                       .forEach(s -> logger.error("****** " + s));
               logger.error("******end******");
@@ -338,7 +342,7 @@ public class Manager {
     } catch (RevokingStoreIllegalStateException e) {
       e.printStackTrace();
     }
-    getTransactionStore().dbSource.putData(trx.getTransactionId().getBytes(), trx.getData());
+//    getTransactionStore().put(trx.getTransactionId().getBytes(), trx);
     return true;
   }
 
@@ -440,11 +444,19 @@ public class Manager {
       throws ValidateSignatureException, ContractValidateException,
       ContractExeException, UnLinkedBlockException {
 
-    List<TransactionCapsule> pendingTrxsTmp = new LinkedList<>();
+    List<TransactionCapsule> pendingTrxsTmp = new LinkedList<>(pendingTrxs);
     //TODO: optimize performance here.
-    pendingTrxsTmp.addAll(pendingTrxs);
+
+    logger.error("*****pendingtrxs before:" + pendingTrxs.size());
+
     pendingTrxs.clear();
+    logger.error("******0 pendingTrxsTmp in transactionStore size:" + pendingTrxsTmp.stream()
+            .map(transactionCapsule -> transactionCapsule.getTransactionId().getBytes())
+            .map(transactionStore::get).count());
     dialog.reset();
+    logger.error("******1 pendingTrxsTmp in transactionStore size:" + pendingTrxsTmp.stream()
+            .map(transactionCapsule -> transactionCapsule.getTransactionId().getBytes())
+            .map(transactionStore::get).count());
 
     //todo: check block's validity
     if (!block.generatedByMyself) {
@@ -491,9 +503,14 @@ public class Manager {
       }
     }
 
+    logger.error("******2 pendingTrxsTmp in transactionStore size:" + pendingTrxsTmp.stream()
+            .map(transactionCapsule -> transactionCapsule.getTransactionId().getBytes())
+            .map(transactionStore::get).count());
+
     //filter trxs
     pendingTrxsTmp.stream()
-        .filter(trx -> getTransactionStore().dbSource.getData(trx.getTransactionId().getBytes()) == null)
+            .filter(trx -> !newBlock.getTransactions().stream().map(TransactionCapsule::getTransactionId).collect(Collectors.toSet()).contains(trx.getTransactionId()))
+      //  .filter(trx -> getTransactionStore().get(trx.getTransactionId().getBytes()) == null)
         .forEach(trx -> {
           try {
             pushTransactions(trx);
@@ -506,7 +523,13 @@ public class Manager {
           }
         });
 
-    this.getBlockStore().dbSource.putData(block.getBlockId().getBytes(), block.getData());
+    logger.error("******3 pendingTrxsTmp in transactionStore size:" + pendingTrxsTmp.stream()
+            .map(transactionCapsule -> transactionCapsule.getTransactionId().getBytes())
+            .map(transactionStore::get).count());
+
+    logger.error("*****pendingtrxs after:" + pendingTrxs.size());
+
+    this.getBlockStore().put(block.getBlockId().getBytes(), block);
     this.numHashCache.putData(ByteArray.fromLong(block.getNum()), block.getBlockId().getBytes());
     refreshHead(newBlock);
     logger.info("save block: " + newBlock);
@@ -572,7 +595,7 @@ public class Manager {
   public void deleteBlock(final Sha256Hash blockHash) {
     final BlockCapsule block = this.getBlockById(blockHash);
     this.khaosDb.removeBlk(blockHash);
-    this.getBlockStore().dbSource.deleteData(blockHash.getBytes());
+    this.getBlockStore().delete(blockHash.getBytes());
     this.numHashCache.deleteData(ByteArray.fromLong(block.getNum()));
     this.head = this.khaosDb.getHead();
   }
@@ -603,6 +626,7 @@ public class Manager {
       act.execute(ret);
       trxCap.setResult(ret);
     }
+    transactionStore.put(trxCap.getTransactionId().getBytes(), trxCap);
     return true;
   }
 

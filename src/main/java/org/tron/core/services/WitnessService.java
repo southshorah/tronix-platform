@@ -187,7 +187,7 @@ public class WitnessService implements Service {
 
     try {
       BlockCapsule block = generateBlock(scheduledTime, scheduledWitness);
-      logger.info("Block is generated successfully, Its Id is {},number{} ", block.getBlockId(),
+      logger.info("***********Block is generated successfully, Its Id is {},number{} ", block.getBlockId(),
           block.getNum());
       broadcastBlock(block);
       return BlockProductionCondition.PRODUCED;
