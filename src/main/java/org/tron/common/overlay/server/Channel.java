@@ -115,9 +115,9 @@ public class Channel {
 
         handshakeHandler.setRemoteId(remoteId, this);
 
-        msgQueue.setChannel(this);
+        //msgQueue.setChannel(this);
 
-        p2pHandler.setMsgQueue(msgQueue);
+        //p2pHandler.setMsgQueue(msgQueue);
 
         logger.info("Channel init finished");
 

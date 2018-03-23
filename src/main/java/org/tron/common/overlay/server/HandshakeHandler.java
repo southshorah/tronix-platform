@@ -27,14 +27,18 @@ import org.spongycastle.util.encoders.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
-import org.tron.common.crypto.ECKey;
+import org.tron.common.overlay.discover.Node;
 import org.tron.common.overlay.discover.NodeManager;
-import org.tron.common.overlay.message.*;
-import org.tron.core.config.args.Args;
+import org.tron.common.overlay.message.HelloMessage;
+import org.tron.common.overlay.message.P2pMessage;
+import org.tron.common.overlay.message.P2pMessageFactory;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.tron.common.overlay.message.StaticMessages.PING_MESSAGE;
@@ -60,27 +64,29 @@ public class HandshakeHandler extends ByteToMessageDecoder {
 
   private byte[] remoteId;
   private Channel channel;
-  private boolean isHandshakeDone;
   private boolean isInitiator = false;
+  private static ScheduledExecutorService pingTimer =
+          Executors.newSingleThreadScheduledExecutor(r -> new Thread(r, "P2pPingTimer"));
+  private ScheduledFuture<?> pingTask;
 
   @Autowired
   private MessageQueue msgQueue;
 
   @Autowired
-  private final NodeManager nodeManager;
+  private NodeManager nodeManager;
 
-  @Autowired
-  public HandshakeHandler(final NodeManager nodeManager) {
-    this.nodeManager = nodeManager;
-  }
+//  @Autowired
+//  public HandshakeHandler(final NodeManager nodeManager) throws  Exception{
+//    this.nodeManager = nodeManager;
+//  }
+
   @Override
   public void channelActive(ChannelHandlerContext ctx) throws Exception {
     channel.setInetSocketAddress((InetSocketAddress) ctx.channel().remoteAddress());
     if (remoteId.length == 64) {
       channel.initWithNode(remoteId);
-      channel.getNodeStatistics().rlpxAuthMessagesSent.add();
+      //channel.getNodeStatistics().rlpxAuthMessagesSent.add();
       channel.sendHelloMessage(ctx, Hex.toHexString(nodeManager.getPublicHomeNode().getId()));
-      isInitiator = true;
     }
   }
 
@@ -90,81 +96,48 @@ public class HandshakeHandler extends ByteToMessageDecoder {
     buffer.readBytes(encoded);
     P2pMessage msg = P2pMessageFactory.create(encoded);
     handleMsg(ctx, msg);
+    channel.activateTron(ctx);
   }
 
   // consume handshake, producing no resulting message to upper layers
   private void handleMsg(final ChannelHandlerContext ctx, P2pMessage msg) throws Exception {
 
+    logger.info("rcv msg from [{}] type = {}, len = {}", msg.getCommand(), msg.getData().length, ctx.channel().remoteAddress());
+
     switch (msg.getCommand()) {
       case HELLO:
         msgQueue.receivedMessage(msg);
-        setHandshake((HelloMessage) msg, ctx);
+        handleHelloMsg((HelloMessage) msg, ctx);
         break;
       case DISCONNECT:
-        msgQueue.receivedMessage(msg);
-        channel.getNodeStatistics()
-                .nodeDisconnectedRemote(ReasonCode.fromInt(((DisconnectMessage) msg).getReason()));
-        processDisconnect(ctx, (DisconnectMessage) msg);
+        //msgQueue.receivedMessage(msg);
+        //channel.getNodeStatistics().nodeDisconnectedRemote(ReasonCode.fromInt(((DisconnectMessage) msg).getReason()));
+        processDisconnect(ctx);
         break;
       case PING:
-        msgQueue.receivedMessage(msg);
+        //msgQueue.receivedMessage(msg);
         ctx.writeAndFlush(PONG_MESSAGE);
         break;
       case PONG:
-        msgQueue.receivedMessage(msg);
-        channel.getNodeStatistics().lastPongReplyTime.set(System.currentTimeMillis());
+        //msgQueue.receivedMessage(msg);
+        //channel.getNodeStatistics().lastPongReplyTime.set(System.currentTimeMillis());
         break;
       default:
-        ctx.fireChannelRead(msg);
+        logger.info("rcv data msg.");
+        //ctx.fireChannelRead(msg);
         break;
     }
   }
 
-  public void handleHelloMsg(HelloMessage msg) {
-    if (isInitiator) {
-      //todo send disconnection msg
-    }
-    if (isInitiator) {
-      channel.initWithNode(Hex.decode(msg.getPeerId()));
+  public void handleHelloMsg(HelloMessage msg, ChannelHandlerContext ctx) throws Exception{
+    if (remoteId.length != 64 && !isInitiator) {
+      channel.initWithNode(Hex.decode(msg.getPeerId()), msg.getListenPort());
       channel.getNodeStatistics().rlpxAuthMessagesSent.add();
       channel.sendHelloMessage(ctx, Hex.toHexString(nodeManager.getPublicHomeNode().getId()));
-      isInitiator = true;
+      nodeManager.getNodeHandler(new Node(Hex.decode(msg.getPeerId()), channel.getInetSocketAddress().getHostString(), msg.getListenPort()));
     }
+    isInitiator = true;
 
-  }
-
-    if (isInitiator) {
-      loggerWire.debug("initiator");
-
-      if (msg instanceof HelloMessage) {
-        isHandshakeDone = true;
-        this.channel.publicHandshakeFinished(ctx, (HelloMessage) msg);
-      } else {
-        channel.getNodeStatistics()
-            .nodeDisconnectedRemote(ReasonCode.fromInt(((DisconnectMessage) msg).getReason()));
-      }
-
-    } else {
-      loggerWire.debug("Not initiator.");
-
-      if (msg instanceof DisconnectMessage) {
-        loggerNet.debug("Active remote peer disconnected right after handshake.");
-        return;
-      }
-
-      if (!(msg instanceof HelloMessage)) {
-        throw new RuntimeException("The message type is not HELLO or DISCONNECT: " + msg);
-      }
-
-      final HelloMessage inboundHelloMessage = (HelloMessage) msg;
-      // now we know both remote nodeId and port
-      // let's set node, that will cause registering node in NodeManager
-      channel.initWithNode(remoteId, inboundHelloMessage.getListenPort());
-      channel.sendHelloMessage(ctx, Hex.toHexString(nodeId));
-      isHandshakeDone = true;
-      this.channel.publicHandshakeFinished(ctx, inboundHelloMessage);
-      channel.getNodeStatistics().rlpxInHello.add();
-    }
   }
 
   public void setRemoteId(String remoteId, Channel channel) {
@@ -179,68 +152,25 @@ public class HandshakeHandler extends ByteToMessageDecoder {
   @Override
   public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
     if (channel.isDiscoveryMode()) {
-      loggerNet.trace("Handshake failed: " + cause);
+      logger.trace("Handshake failed: " + cause);
     } else {
       if (cause instanceof IOException || cause instanceof ReadTimeoutException) {
-        loggerNet.debug("Handshake failed: " + ctx.channel().remoteAddress() + ": " + cause);
+        logger.debug("Handshake failed: " + ctx.channel().remoteAddress() + ": " + cause);
       } else {
-        loggerNet.warn("Handshake failed: ", cause);
+        logger.warn("Handshake failed: ", cause);
       }
     }
     ctx.close();
   }
 
-  private void processDisconnect(ChannelHandlerContext ctx, DisconnectMessage msg) {
-
-    if (logger.isInfoEnabled() && ReasonCode.fromInt(msg.getReason()) == ReasonCode.USELESS_PEER) {
-
-      if (channel.getNodeStatistics().ethInbound.get() - ethInbound > 1 ||
-              channel.getNodeStatistics().ethOutbound.get() - ethOutbound > 1) {
-
-        // it means that we've been disconnected
-        // after some incorrect action from our peer
-        // need to log this moment
-        logger.debug("From: \t{}\t [DISCONNECT reason=BAD_PEER_ACTION]", channel);
-      }
-    }
+  private void processDisconnect(ChannelHandlerContext ctx) {
+    logger.info("disconnect channel {}", channel);
     ctx.close();
-    killTimers();
-  }
-
-
-  public void setHandshake(HelloMessage msg, ChannelHandlerContext ctx) {
-
-    channel.getNodeStatistics().setClientId(msg.getClientId());
-//        channel.getNodeStatistics().capabilities.clear();
-//        channel.getNodeStatistics().capabilities.addAll(msg.getCapabilities());
-
-    this.ethInbound = (int) channel.getNodeStatistics().ethInbound.get();
-    this.ethOutbound = (int) channel.getNodeStatistics().ethOutbound.get();
-
-//        this.handshakeHelloMessage = msg;
-
-//        List<Capability> capInCommon = getSupportedCapabilities(msg);
-//        channel.initMessageCodes(capInCommon);
-
-    channel.activateTron(ctx);
-
-    //todo: init peer's block status and sync
-    //tronListener.onHandShakePeer(channel, msg);
-  }
-
-  /**
-   * submit transaction to the network
-   */
-
-  public void sendDisconnect() {
-    msgQueue.disconnect();
+    pingTask.cancel(false);
   }
 
   private void startTimers() {
 
-    logger.info(args.getNodeP2pPingInterval() + "");
-    logger.info(args.getNodeP2pPingInterval() + "");
-    // sample for pinging in background
     pingTask = pingTimer.scheduleAtFixedRate(() -> {
       try {
         msgQueue.sendMessage(PING_MESSAGE);
