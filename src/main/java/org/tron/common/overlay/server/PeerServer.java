@@ -86,6 +86,8 @@ public class PeerServer {
 
             channelFuture = b.bind(port).sync();
 
+            logger.info("NodeId: [{}] ", Hex.toHexString(this.args.nodeId()));
+
             listening = true;
             // Wait until the connection is closed.
             channelFuture.channel().closeFuture().sync();
