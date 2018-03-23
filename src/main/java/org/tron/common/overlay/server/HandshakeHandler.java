@@ -106,7 +106,7 @@ public class HandshakeHandler extends ByteToMessageDecoder {
 
     switch (msg.getCommand()) {
       case HELLO:
-        msgQueue.receivedMessage(msg);
+        //msgQueue.receivedMessage(msg);
         handleHelloMsg((HelloMessage) msg, ctx);
         break;
       case DISCONNECT:
@@ -131,13 +131,15 @@ public class HandshakeHandler extends ByteToMessageDecoder {
 
   public void handleHelloMsg(HelloMessage msg, ChannelHandlerContext ctx) throws Exception{
     if (remoteId.length != 64 && !isInitiator) {
+      logger.info("get msg node id , {}", msg.getPeerId());
       channel.initWithNode(Hex.decode(msg.getPeerId()), msg.getListenPort());
       channel.getNodeStatistics().rlpxAuthMessagesSent.add();
       channel.sendHelloMessage(ctx, Hex.toHexString(nodeManager.getPublicHomeNode().getId()));
       nodeManager.getNodeHandler(new Node(Hex.decode(msg.getPeerId()), channel.getInetSocketAddress().getHostString(), msg.getListenPort()));
     }
     isInitiator = true;
-
+    //msgQueue.activate(ctx);
+    //startTimers();
   }
 
   public void setRemoteId(String remoteId, Channel channel) {
@@ -173,7 +175,12 @@ public class HandshakeHandler extends ByteToMessageDecoder {
 
     pingTask = pingTimer.scheduleAtFixedRate(() -> {
       try {
+
+        logger.info("ping msg to queue, {}", PING_MESSAGE);
         msgQueue.sendMessage(PING_MESSAGE);
+
+       // channel .writeAndFlush(Unpooled.wrappedBuffer(StaticMessages.PING_MESSAGE.getSendData())).sync();
+
       } catch (Throwable t) {
         logger.error("Unhandled exception", t);
       }

@@ -55,7 +55,6 @@ import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Transaction;
 
 @Slf4j
-@Component
 public class Manager {
 
   private static final long BLOCK_INTERVAL_SEC = 1;
@@ -72,7 +71,6 @@ public class Manager {
   private AssetIssueStore assetIssueStore;
   private DynamicPropertiesStore dynamicPropertiesStore;
 
-  @Autowired
   private PeersStore peersStore;
   private BlockCapsule genesisBlock;
 

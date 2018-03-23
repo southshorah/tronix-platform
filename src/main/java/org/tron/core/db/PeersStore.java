@@ -1,18 +1,15 @@
 package org.tron.core.db;
 
-import java.util.HashSet;
-import java.util.Set;
-import java.util.StringTokenizer;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
-import org.springframework.stereotype.Component;
 import org.tron.common.overlay.discover.Node;
 import org.tron.common.storage.leveldb.LevelDbDataSourceImpl;
 
-@Component
+import java.util.HashSet;
+import java.util.Set;
+import java.util.StringTokenizer;
+
 public class PeersStore extends TronDatabase<Set<Node>> {
 
-  @Autowired
   public PeersStore(ApplicationContext ctx) {
     super("peers");
   }

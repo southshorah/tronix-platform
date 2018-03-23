@@ -25,8 +25,8 @@ public class DisconnectMessage extends P2pMessage {
         .newBuilder()
         .setReason(Protocol.ReasonCode.forNumber(reasonCode.asByte()))
         .build();
-    unpacked = true;
     this.type = MessageTypes.P2P_DISCONNECT.asByte();
+    pack();
   }
 
   private void unPack() {
@@ -52,7 +52,7 @@ public class DisconnectMessage extends P2pMessage {
 
   @Override
   public P2pMessageCodes getCommand() {
-    return P2pMessageCodes.fromByte(this.type);
+    return P2pMessageCodes.DISCONNECT;
   }
 
   /**

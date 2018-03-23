@@ -19,12 +19,12 @@ package org.tron.common.overlay.discover;
 
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 import org.tron.common.overlay.discover.message.*;
 import org.tron.common.overlay.discover.table.NodeTable;
 import org.tron.common.utils.CollectionUtils;
 import org.tron.core.config.args.Args;
-import org.tron.core.db.Manager;
 
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -84,17 +84,17 @@ public class NodeManager implements Consumer<DiscoveryEvent> {
   private ScheduledExecutorService pongTimer;
 
   @Autowired
-  public NodeManager(Manager dbManager) {
+  public NodeManager(ApplicationContext tx) {
     Args args = Args.getInstance();
     PERSIST = args.isNodeDiscoveryPersist();
 
     discoveryEnabled = args.isNodeDiscoveryEnable();
     args.nodeId();
-    //homeNode = Node.instanceOf("127.0.0.1:"+ args.getNodeListenPort());//new Node(args.nodeId(), "127.0.0.1", args.getNodeListenPort());
-    homeNode = dbManager.getHomeNode();
-
-    logger.info("homeNode : {}", homeNode.toString());
-
+    homeNode = Node.instanceOf("127.0.0.1:"+ args.getNodeListenPort());//new Node(args.nodeId(), "127.0.0.1", args.getNodeListenPort());
+//    homeNode = dbManager.getHomeNode();
+//
+//    logger.info("homeNode : {}", homeNode.toString());
+//
     table = new NodeTable(homeNode, args.isNodeDiscoveryPublicHomeNode());
 
     logStatsTimer.scheduleAtFixedRate(new TimerTask() {
@@ -163,17 +163,17 @@ public class NodeManager implements Consumer<DiscoveryEvent> {
       trimTable();
       ret = new NodeHandler(n, this);
       nodeHandlerMap.put(key, ret);
-      logger.info(" +++ New node, {}: {} {} {}", nodeHandlerMap.size(),n.getHost(),n.getPort(), n.getId());
-      if (!n.isDiscoveryNode() && !n.getHexId().equals(homeNode.getHexId())) {
-        //ethereumListener.onNodeDiscovered(ret.getNode());
-      }
+      logger.info(" +++ New node, {}: {} {} {}", nodeHandlerMap.size(),n.getHost(),n.getPort(), n.getHexIdShort());
+//      if (!n.isDiscoveryNode() && !n.getHexId().equals(homeNode.getHexId())) {
+//        //ethereumListener.onNodeDiscovered(ret.getNode());
+//      }
     } else if (ret.getNode().isDiscoveryNode() && !n.isDiscoveryNode()) {
       // we found discovery node with same host:port,
       // replace node with correct nodeId
       ret.node = n;
-      if (!n.getHexId().equals(homeNode.getHexId())) {
-        //ethereumListener.onNodeDiscovered(ret.getNode());
-      }
+//      if (!n.getHexId().equals(homeNode.getHexId())) {
+//        //ethereumListener.onNodeDiscovered(ret.getNode());
+//      }
       logger.debug(" +++ Found real nodeId", n.getHost(),n.getPort(), n.getHexIdShort());
     }
 

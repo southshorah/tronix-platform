@@ -1,7 +1,11 @@
 package org.tron.common.overlay.message;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import org.tron.common.overlay.discover.Node;
+import org.tron.common.utils.ByteArray;
 import org.tron.core.net.message.MessageTypes;
+import org.tron.protos.Discover.Endpoint;
 import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.HelloMessage.Builder;
 
@@ -21,18 +25,26 @@ public class HelloMessage extends P2pMessage {
   /**
    * Create hello message.
    */
-  public HelloMessage(byte p2pVersion, String clientId, int listenPort, String peerId) {
+  public HelloMessage(Node from, int version, String clientId, int listenPort, String peerId) {
+
+    Endpoint fromEndpoint = Endpoint.newBuilder()
+        .setNodeId(ByteString.copyFrom(from.getId()))
+        .setPort(from.getPort())
+        .setAddress(ByteString.copyFrom(ByteArray.fromString(from.getHost())))
+        .build();
 
     Builder builder = Protocol.HelloMessage.newBuilder();
 
-    builder.setP2PVersion(p2pVersion);
+    builder.setFrom(fromEndpoint);
+    builder.setVersion(version);
     builder.setClientId(clientId);
     builder.setListenPort(listenPort);
     builder.setPeerId(peerId);
 
     this.helloMessage = builder.build();
-    this.unpacked = true;
     this.type = MessageTypes.P2P_HELLO.asByte();
+    this.unpacked = false;
+    pack();
   }
 
   private void unPack() {
@@ -59,11 +71,11 @@ public class HelloMessage extends P2pMessage {
   /**
    * Get the version of p2p protocol.
    */
-  public byte getP2PVersion() {
+  public byte getVersion() {
     if (!this.unpacked) {
       this.unPack();
     }
-    return (byte) this.helloMessage.getP2PVersion();
+    return (byte) this.helloMessage.getVersion();
   }
 
   /**
@@ -98,7 +110,7 @@ public class HelloMessage extends P2pMessage {
 
   @Override
   public P2pMessageCodes getCommand() {
-    return P2pMessageCodes.fromByte(this.type);
+    return P2pMessageCodes.HELLO;
   }
 
   /**
@@ -113,9 +125,9 @@ public class HelloMessage extends P2pMessage {
   /**
    * Set version of p2p protocol.
    */
-  public void setP2pVersion(byte p2pVersion) {
+  public void setVersion(byte version) {
     Builder builder = this.helloMessage.toBuilder();
-    builder.setP2PVersion(p2pVersion);
+    builder.setVersion(version);
     this.helloMessage = builder.build();
   }
 
@@ -126,10 +138,8 @@ public class HelloMessage extends P2pMessage {
     if (!this.unpacked) {
       this.unPack();
     }
-    return "[" + this.getCommand().name() + " p2pVersion="
-        + this.getP2PVersion() + " clientId=" + this.getClientId()
-        + " peerPort=" + this.getListenPort() + " peerId="
-        + this.getPeerId() + "]";
+
+    return helloMessage.toString();
   }
 
   @Override

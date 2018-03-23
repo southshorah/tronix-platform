@@ -141,7 +141,7 @@ public class Channel {
     public void sendHelloMessage(ChannelHandlerContext ctx,
         String nodeId) throws IOException, InterruptedException {
 
-        final HelloMessage helloMessage = staticMessages.createHelloMessage(nodeId);
+        final HelloMessage helloMessage = staticMessages.createHelloMessage(ctx, nodeId);
         //ByteBuf byteBufMsg = ctx.alloc().buffer();
         logger.info("send hello msg: {}", helloMessage);
 

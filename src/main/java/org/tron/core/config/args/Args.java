@@ -1,27 +1,8 @@
 package org.tron.core.config.args;
 
-import static org.tron.common.crypto.Hash.sha3;
-
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.typesafe.config.ConfigObject;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.io.Writer;
-import java.net.InetAddress;
-import java.net.Socket;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -31,6 +12,15 @@ import org.spongycastle.util.encoders.Hex;
 import org.springframework.stereotype.Component;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.overlay.discover.Node;
+
+import java.io.*;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.net.URL;
+import java.util.*;
+import java.util.stream.Collectors;
+
+import static org.tron.common.crypto.Hash.sha3;
 
 @Slf4j
 @NoArgsConstructor
@@ -140,6 +130,10 @@ public class Args {
   @Setter
   private long syncNodeCount;
 
+  @Getter
+  @Setter
+  private int nodeP2pVersion;
+
   public static void clearParam() {
     INSTANCE.outputDirectory = "output-directory";
     INSTANCE.help = false;
@@ -159,7 +153,7 @@ public class Args {
     INSTANCE.nodeDiscoveryEnable = false;
     INSTANCE.nodeDiscoveryPersist = false;
     INSTANCE.nodeConnectionTimeout = 0;
-    INSTANCE.nodeActive = Collections.EMPTY_LIST;
+    INSTANCE.nodeActive = Collections.emptyList();
     INSTANCE.nodeChannelReadTimeout = 0;
     INSTANCE.nodeMaxActiveNodes = 0;
     INSTANCE.nodeListenPort = 0;
@@ -168,6 +162,7 @@ public class Args {
     INSTANCE.nodeDiscoveryPublicHomeNode = false;
     INSTANCE.nodeP2pPingInterval = 0L;
     INSTANCE.syncNodeCount = 0;
+    INSTANCE.nodeP2pVersion = 0;
   }
 
   /**
@@ -221,49 +216,50 @@ public class Args {
     } else {
       INSTANCE.genesisBlock = GenesisBlock.getDefault();
     }
-    INSTANCE.blockInterval = config.getLong("block.interval");
-    INSTANCE.needSyncCheck = config.getBoolean("block.needSyncCheck");
 
-    if (config.hasPath("node.discovery.enable")) {
-      INSTANCE.nodeDiscoveryEnable = config.getBoolean("node.discovery.enable");
-    }
+    INSTANCE.blockInterval =
+        config.hasPath("block.interval") ? config.getLong("block.interval") : 0;
 
-    if (config.hasPath("node.discovery.persist")) {
-      INSTANCE.nodeDiscoveryPersist = config.getBoolean("node.discovery.persist");
-    }
+    INSTANCE.needSyncCheck =
+        config.hasPath("block.needSyncCheck") && config.getBoolean("block.needSyncCheck");
 
-    if (config.hasPath("node.connection.timeout")) {
-      INSTANCE.nodeConnectionTimeout = config.getInt("node.connection.timeout") * 1000;
-    }
+    INSTANCE.nodeDiscoveryEnable =
+        config.hasPath("node.discovery.enable") && config.getBoolean("node.discovery.enable");
+
+    INSTANCE.nodeDiscoveryPersist =
+        config.hasPath("node.discovery.persist") && config.getBoolean("node.discovery.persist");
+
+    INSTANCE.nodeConnectionTimeout =
+        config.hasPath("node.connection.timeout") ? config.getInt("node.connection.timeout") * 1000
+            : 0;
 
     INSTANCE.nodeActive = nodeActive(config);
 
-    if (config.hasPath("node.channel.read.timeout")) {
-      INSTANCE.nodeChannelReadTimeout = config.getInt("node.channel.read.timeout");
-    }
+    INSTANCE.nodeChannelReadTimeout =
+        config.hasPath("node.channel.read.timeout") ? config.getInt("node.channel.read.timeout")
+            : 0;
 
-    if (config.hasPath("node.maxActiveNodes")) {
-      INSTANCE.nodeMaxActiveNodes = config.getInt("node.maxActiveNodes");
-    }
+    INSTANCE.nodeMaxActiveNodes =
+        config.hasPath("node.maxActiveNodes") ? config.getInt("node.maxActiveNodes") : 0;
 
-    if (config.hasPath("node.listen.port")) {
-      INSTANCE.nodeListenPort = config.getInt("node.listen.port");
-    }
+    INSTANCE.nodeListenPort =
+        config.hasPath("node.listen.port") ? config.getInt("node.listen.port") : 0;
 
     bindIp(config);
     externalIp(config);
 
-    if (config.hasPath("node.discovery.public.home.node")) {
-      INSTANCE.nodeDiscoveryPublicHomeNode = config.getBoolean("node.discovery.public.home.node");
-    }
+    INSTANCE.nodeDiscoveryPublicHomeNode =
+        config.hasPath("node.discovery.public.home.node") && config
+            .getBoolean("node.discovery.public.home.node");
 
-    if (config.hasPath("node.p2p.pingInterval")) {
-      INSTANCE.nodeP2pPingInterval = config.getLong("node.p2p.pingInterval");
-    }
+    INSTANCE.nodeP2pPingInterval =
+        config.hasPath("node.p2p.pingInterval") ? config.getLong("node.p2p.pingInterval") : 0;
 
-    if (config.hasPath("syn.node.count")) {
-      INSTANCE.syncNodeCount = config.getLong("syn.node.count");
-    }
+    INSTANCE.syncNodeCount =
+        config.hasPath("syn.node.count") ? config.getLong("syn.node.count") : 0;
+
+    INSTANCE.nodeP2pVersion =
+        config.hasPath("node.p2p.version") ? config.getInt("node.p2p.version") : 0;
   }
 
 

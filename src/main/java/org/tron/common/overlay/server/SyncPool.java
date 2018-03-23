@@ -18,26 +18,11 @@ package org.tron.common.overlay.server;
  * along with the ethereumJ library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-import static java.lang.Math.min;
-
-import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
-import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 import org.tron.common.overlay.discover.Node;
 import org.tron.common.overlay.discover.NodeHandler;
@@ -47,6 +32,16 @@ import org.tron.common.utils.Utils;
 import org.tron.core.config.args.Args;
 import org.tron.core.net.peer.PeerConnection;
 import org.tron.core.net.peer.PeerConnectionDelegate;
+
+import javax.annotation.Nullable;
+import java.math.BigInteger;
+import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
+
+import static java.lang.Math.min;
 
 /**
  * <p>Encapsulates logic which manages peers involved in blockchain sync</p>
@@ -75,13 +70,13 @@ public class SyncPool {
   @Autowired
   private NodeManager nodeManager;
 
-  @Autowired
-  private PeerConnectionDelegate peerDel;
+//  @Autowired
+//  private PeerConnectionDelegate peerDel;
 
   @Autowired
   private ChannelManager channelManager;
 
-  private Args args;
+  private Args args = Args.getInstance();
 
   private ScheduledExecutorService poolLoopExecutor = Executors.newSingleThreadScheduledExecutor();
 
@@ -89,8 +84,7 @@ public class SyncPool {
   private ScheduledExecutorService logExecutor = Executors.newSingleThreadScheduledExecutor();
 
   @Autowired
-  public SyncPool(final Args args) {
-    this.args = args;
+  public SyncPool(ApplicationContext tx) {
     logger.info("_________SyncPool ggg.");
     init(channelManager, null);
   }
@@ -101,7 +95,7 @@ public class SyncPool {
     if (this.channelManager != null) return; // inited already
     this.channelManager = channelManager;
     //updateLowerUsefulDifficulty();x
-    this.peerDel = peerDel;
+    //this.peerDel = peerDel;
 
     //updateLowerUsefulDifficulty();
 
@@ -344,7 +338,7 @@ public class SyncPool {
 
     for (PeerConnection channel : filtered) {
       if (!activePeers.contains(channel)) {
-        peerDel.onConnectPeer(channel);
+        //peerDel.onConnectPeer(channel);
       }
     }
 
@@ -357,7 +351,7 @@ public class SyncPool {
     while (iterator.hasNext()) {
       PeerConnection next = iterator.next();
       if (next.isDisconnected()) {
-        peerDel.onDisconnectPeer(next);
+        //peerDel.onDisconnectPeer(next);
         logger.info("Removing peer " + next + " from active due to disconnect.");
         iterator.remove();
       }
