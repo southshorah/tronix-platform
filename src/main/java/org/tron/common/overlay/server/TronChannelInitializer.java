@@ -80,7 +80,7 @@ public class TronChannelInitializer extends ChannelInitializer<NioSocketChannel>
             channel.init(ch.pipeline(), remoteId, peerDiscoveryMode, channelManager, p2pNode);
 
             if(!peerDiscoveryMode) {
-                logger.info("add Channel");
+                logger.info("New peer to ChannelManager, {} {}",  ch.remoteAddress(), remoteId);
                 channelManager.add(channel);
             }
 

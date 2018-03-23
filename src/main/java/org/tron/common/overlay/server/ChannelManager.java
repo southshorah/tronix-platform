@@ -211,7 +211,7 @@ public class ChannelManager {
 
 
     public void add(Channel peer) {
-        logger.info("New peer in ChannelManager, {} {} {}", peer.getPeerId());
+
 
         newPeers.add(peer);
     }
