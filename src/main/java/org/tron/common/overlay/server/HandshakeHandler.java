@@ -93,11 +93,12 @@ public class HandshakeHandler extends ByteToMessageDecoder {
 
   @Override
   protected void decode(ChannelHandlerContext ctx, ByteBuf buffer, List<Object> out) throws Exception {
+    logger.info("rcv buffer {} {}", ctx.channel().remoteAddress(), buffer.readableBytes());
     byte[] encoded = new byte[buffer.readableBytes()];
     buffer.readBytes(encoded);
     P2pMessage msg = P2pMessageFactory.create(encoded);
     handleMsg(ctx, msg);
-    channel.activateTron(ctx);
+    //channel.activateTron(ctx);
   }
 
   // consume handshake, producing no resulting message to upper layers
