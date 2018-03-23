@@ -30,7 +30,6 @@ import org.tron.common.overlay.discover.Node;
 import org.tron.common.overlay.discover.NodeManager;
 import org.tron.common.overlay.discover.NodeStatistics;
 import org.tron.common.overlay.message.HelloMessage;
-import org.tron.common.overlay.message.MessageCodec;
 import org.tron.common.overlay.message.ReasonCode;
 import org.tron.common.overlay.message.StaticMessages;
 import org.tron.core.config.args.Args;
@@ -61,9 +60,6 @@ public class Channel {
 
     @Autowired
     private P2pHandler p2pHandler;
-
-    @Autowired
-    private MessageCodec messageCodec;
 
     @Autowired
     private HandshakeHandler handshakeHandler;
@@ -103,7 +99,7 @@ public class Channel {
         isActive = remoteId != null && !remoteId.isEmpty();
 
         pipeline.addLast("readTimeoutHandler",
-            new ReadTimeoutHandler(args.getNodeChannelReadTimeout(), TimeUnit.SECONDS));
+            new ReadTimeoutHandler(100, TimeUnit.SECONDS));
         pipeline.addLast(stats.tcp);
         //handshake first
         pipeline.addLast("handshakeHandler", handshakeHandler);
@@ -118,8 +114,6 @@ public class Channel {
         }
 
         handshakeHandler.setRemoteId(remoteId, this);
-
-        messageCodec.setChannel(this);
 
         msgQueue.setChannel(this);
 
@@ -136,8 +130,7 @@ public class Channel {
 //        FrameCodecHandler frameCodecHandler = new FrameCodecHandler(frameCodec, this);
 //        ctx.pipeline().addLast("medianFrameCodec", frameCodecHandler);
         //TODO: use messageCodec handle bytes to message directly
-        ctx.pipeline().addLast("messageCodec", messageCodec);
-        ctx.pipeline().addLast("p2p", p2pHandler);
+       // ctx.pipeline().addLast("p2p", p2pHandler);
 
         p2pHandler.setChannel(this);
         p2pHandler.setHandshake(helloRemote, ctx);
@@ -150,15 +143,7 @@ public class Channel {
 
         final HelloMessage helloMessage = staticMessages.createHelloMessage(nodeId);
         //ByteBuf byteBufMsg = ctx.alloc().buffer();
-
         logger.info("send hello msg: {}", helloMessage);
-        logger.info("send hello msg: {} {}", helloMessage.getSendData()[0], helloMessage.getSendData()[1]);
-
-//        ByteBuf byteBufMsg = ctx.alloc().buffer();
-//        new ByteBufOutputStream(byteBufMsg).write(helloMessage.getSendData(),
-//                0, helloMessage.getSendData().length);
-
-
 
         ctx.writeAndFlush(Unpooled.wrappedBuffer(helloMessage.getSendData())).sync();
 

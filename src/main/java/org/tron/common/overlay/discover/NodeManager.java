@@ -19,12 +19,12 @@ package org.tron.common.overlay.discover;
 
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 import org.tron.common.overlay.discover.message.*;
 import org.tron.common.overlay.discover.table.NodeTable;
 import org.tron.common.utils.CollectionUtils;
 import org.tron.core.config.args.Args;
+import org.tron.core.db.Manager;
 
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -52,6 +52,9 @@ public class NodeManager implements Consumer<DiscoveryEvent> {
 
   private final boolean PERSIST;
 
+//  @Autowired
+//  private Manager dbManager;
+
   private static final long LISTENER_REFRESH_RATE = 1000;
   private static final long DB_COMMIT_RATE = 1 * 60 * 1000;
   static final int MAX_NODES = 2000;
@@ -78,19 +81,17 @@ public class NodeManager implements Consumer<DiscoveryEvent> {
   private boolean inited = false;
   private Timer logStatsTimer = new Timer();
   private Timer nodeManagerTasksTimer = new Timer("NodeManagerTasks");
-  ;
   private ScheduledExecutorService pongTimer;
 
   @Autowired
-  public NodeManager(ApplicationContext ctx) {
+  public NodeManager(Manager dbManager) {
     Args args = Args.getInstance();
-    //this.ethereumListener = ethereumListener;
-    //this.peerConnectionManager = peerConnectionManager;
     PERSIST = args.isNodeDiscoveryPersist();
 
     discoveryEnabled = args.isNodeDiscoveryEnable();
     args.nodeId();
-    homeNode = Node.instanceOf("127.0.0.1:"+ args.getNodeListenPort());//new Node(args.nodeId(), "127.0.0.1", args.getNodeListenPort());
+    //homeNode = Node.instanceOf("127.0.0.1:"+ args.getNodeListenPort());//new Node(args.nodeId(), "127.0.0.1", args.getNodeListenPort());
+    homeNode = dbManager.getHomeNode();
 
     logger.info("homeNode : {}", homeNode.toString());
 

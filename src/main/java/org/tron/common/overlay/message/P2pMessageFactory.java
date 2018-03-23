@@ -21,10 +21,11 @@ package org.tron.common.overlay.message;
 import org.apache.commons.lang3.ArrayUtils;
 import org.tron.core.net.message.MessageTypes;
 
-public class P2pMessageFactory extends MessageFactory {
+public class P2pMessageFactory {
 
-  @Override
-  public P2pMessage create(byte type, byte[] rawData) {
+  public static P2pMessage create(byte[] data) {
+    byte type = data[0];
+    byte[] rawData = ArrayUtils.subarray(data, 1, data.length);
     MessageTypes messageType = MessageTypes.fromByte(type);
     switch (messageType) {
       case P2P_HELLO:
@@ -38,12 +39,5 @@ public class P2pMessageFactory extends MessageFactory {
       default:
         throw new IllegalArgumentException("No such message");
     }
-  }
-
-  @Override
-  public P2pMessage create(byte[] data) {
-    byte type = data[0];
-    byte[] rawData = ArrayUtils.subarray(data, 1, data.length);
-    return create(type, rawData);
   }
 }

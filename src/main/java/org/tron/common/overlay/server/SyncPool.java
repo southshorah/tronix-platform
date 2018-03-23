@@ -18,6 +18,22 @@ package org.tron.common.overlay.server;
  * along with the ethereumJ library. If not, see <http://www.gnu.org/licenses/>.
  */
 
+import static java.lang.Math.min;
+
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
@@ -25,21 +41,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.tron.common.overlay.discover.Node;
 import org.tron.common.overlay.discover.NodeHandler;
+import org.tron.common.overlay.discover.NodeHandler.State;
 import org.tron.common.overlay.discover.NodeManager;
 import org.tron.common.utils.Utils;
 import org.tron.core.config.args.Args;
 import org.tron.core.net.peer.PeerConnection;
 import org.tron.core.net.peer.PeerConnectionDelegate;
-
-import javax.annotation.Nullable;
-import java.math.BigInteger;
-import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
-
-import static java.lang.Math.min;
 
 /**
  * <p>Encapsulates logic which manages peers involved in blockchain sync</p>
@@ -203,7 +210,7 @@ public class SyncPool {
   public synchronized Set<String> nodesInUse() {
     Set<String> ids = new HashSet<>();
     if (channelManager.getActivePeers() == null){
-
+      return ids;
     }
     for (Channel peer : channelManager.getActivePeers()) {
       ids.add(peer.getPeerId());
@@ -244,10 +251,18 @@ public class SyncPool {
 
     @Override
     public boolean test(NodeHandler handler) {
+      logger.info(handler.getNode().toString());
+      logger.info(handler.getNode().getHexId());
       if (nodesInUse != null && nodesInUse.contains(handler.getNode().getHexId())) {
         return false;
       }
+
+      if (handler.getState().equals(State.Dead)) {
+        return false;
+      }
+
       return  true;
+
 //
 //      if (handler.getNodeStatistics().isPredefined()) return true;
 //
