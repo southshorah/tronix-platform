@@ -126,7 +126,7 @@ public class UDPListener {
 
         channel = b.bind(address, port).sync().channel();
 
-        logger.info("UDPListener start ip {}  port {} ");
+        logger.info("UDPListener start ip {}  port {} ", address, port);
 
         channel.closeFuture().sync();
         if (shutdown) {
