@@ -210,7 +210,7 @@ public class NodeHandler {
     }
 
     protected void stateChanged(State oldState, State newState) {
-        logger.trace("State change " + oldState + " -> " + newState + ": " + this);
+        logger.info("State change " + oldState + " -> " + newState + ": " + this);
         nodeManager.stateChanged(this, oldState, newState);
     }
 
@@ -260,6 +260,7 @@ public class NodeHandler {
     }
 
     void handleTimedOut() {
+        logger.info("ping time out {}", node);
         waitForPong = false;
         if (--pingTrials > 0) {
             sendPing();
