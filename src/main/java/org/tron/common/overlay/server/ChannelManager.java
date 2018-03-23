@@ -77,9 +77,9 @@ public class ChannelManager {
     private NodeImpl peerDel;
 
     @Autowired
-    private ChannelManager(final Args args, final PeerClient peerClient,
+    private ChannelManager(final PeerClient peerClient,
         final PeerServer peerServer, final NodeImpl peerDel) {
-        this.args = args;
+        this.args = Args.getInstance();
         //this.syncManager = syncManager;
         this.peerClient = peerClient;
         this.peerServer = peerServer;
@@ -92,7 +92,7 @@ public class ChannelManager {
             } catch (Throwable t) {
                 logger.error("Error", t);
             }
-        }, 0, 1, TimeUnit.SECONDS);
+        }, 0, 5, TimeUnit.SECONDS);
 
         //if (this.args.getNodeListenPort() > 0) {
             new Thread(() -> peerServer.start(Args.getInstance().getNodeListenPort()),
@@ -132,6 +132,7 @@ public class ChannelManager {
     }
 
     private void processNewPeers() {
+
         if (newPeers.isEmpty()) return;
 
         List<Channel> processed = new ArrayList<>();
@@ -139,9 +140,9 @@ public class ChannelManager {
         int addCnt = 0;
         for(Channel peer : newPeers) {
 
-            logger.debug("Processing new peer: " + peer);
+            logger.info("Processing new peer: " + peer);
 
-            //if(peer.isProtocolsInitialized()) {
+            if(peer.getNode() != null) {
 
                 logger.info("Protocols initialized");
 
@@ -159,22 +160,27 @@ public class ChannelManager {
                         addCnt++;
                     }
                 } else {
+                    logger.info("dup peer, {} {} {}", peer.getNode().getHost(), peer.getNode().getPort(), peer.getPeerId());
                     disconnect(peer, DUPLICATE_PEER);
                 }
 
                 processed.add(peer);
-            //}
+            }else{
+                logger.info("no node, {}", peer.getPeerId());
+            }
         }
 
         if (addCnt > 0) {
             logger.info("New peers processed: " + processed + ", active peers added: " + addCnt + ", total active peers: " + activePeers.size());
         }
 
+        activePeers.forEach((k,v) -> logger.info("k={}, v={}",k,v));
+        logger.info(activePeers.toString());
         newPeers.removeAll(processed);
     }
 
     private void disconnect(Channel peer, ReasonCode reason) {
-        logger.debug("Disconnecting peer with reason " + reason + ": " + peer);
+        logger.info("Disconnecting peer with reason " + reason + ": " + peer);
         peer.disconnect(reason);
         recentlyDisconnected.put(peer.getInetSocketAddress().getAddress(), new Date());
     }
@@ -205,12 +211,13 @@ public class ChannelManager {
 
 
     public void add(Channel peer) {
-        logger.debug("New peer in ChannelManager {}", peer);
+        logger.info("New peer in ChannelManager, {} {} {}", peer.getPeerId());
+
         newPeers.add(peer);
     }
 
     public void notifyDisconnect(Channel channel) {
-        logger.debug("Peer {}: notifies about disconnect", channel);
+        logger.info("Peer {}: notifies about disconnect", channel);
         channel.onDisconnect();
         //syncPool.onDisconnect(channel);
         activePeers.values().remove(channel);

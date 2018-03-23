@@ -19,9 +19,8 @@ package org.tron.common.overlay.message;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.MessageToMessageCodec;
-import java.io.IOException;
-import java.util.List;
+import io.netty.handler.codec.ByteToMessageCodec;
+import io.netty.handler.codec.ByteToMessageDecoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,20 +29,36 @@ import org.springframework.stereotype.Component;
 import org.tron.common.overlay.server.Channel;
 import org.tron.core.config.args.Args;
 
+import java.io.IOException;
+import java.util.List;
+
 
 /**
  * The Netty codec which encodes/decodes RPLx frames to subprotocol Messages
  */
 @Component
 @Scope("prototype")
-public class MessageCodec extends MessageToMessageCodec<ByteBuf, Message> {
+public class MessageCodec extends ByteToMessageCodec<Message> {
 
     private static final Logger loggerWire = LoggerFactory.getLogger("wire");
     private static final Logger loggerNet = LoggerFactory.getLogger("net");
-
     private Channel channel;
     private P2pMessageFactory p2pMessageFactory;
     //private  tronMessageFactory;
+
+    private final ByteToMessageDecoder decoder = new ByteToMessageDecoder() {
+        {
+            setCumulator(COMPOSITE_CUMULATOR);
+        }
+
+        @Override
+        public void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
+        }
+
+        @Override
+        protected void decodeLast(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
+        }
+    };
 
     @Autowired
     //EthereumListener ethereumListener;
@@ -78,9 +93,8 @@ public class MessageCodec extends MessageToMessageCodec<ByteBuf, Message> {
         return msg;
     }
 
-    @Override
     protected void encode(ChannelHandlerContext ctx, Message msg, List<Object> out) throws Exception {
-        String output = String.format("To: \t%s \tSend: \t%s", ctx.channel().remoteAddress(), msg);
+        //String output = String.format("To: \t%s \tSend: \t%s", ctx.channel().remoteAddress(), msg);
 
         if (loggerNet.isDebugEnabled())
             loggerNet.debug("To:   {}    Send:  {}", channel, msg);
@@ -103,6 +117,32 @@ public class MessageCodec extends MessageToMessageCodec<ByteBuf, Message> {
         //TODO:add tron message factory here
         return p2pMessageFactory.create(data);
    }
+
+    @Override
+    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
+        decoder.channelReadComplete(ctx);
+        super.channelReadComplete(ctx);
+    }
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        decoder.channelInactive(ctx);
+        super.channelInactive(ctx);
+    }
+    @Override
+    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+        decoder.handlerAdded(ctx);
+        super.handlerAdded(ctx);
+    }
+    @Override
+    public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
+        decoder.handlerRemoved(ctx);
+        super.handlerRemoved(ctx);
+    }
+
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        decoder.channelRead(ctx, msg);
+    }
 
     public void setChannel(Channel channel){
         this.channel = channel;

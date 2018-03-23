@@ -162,7 +162,7 @@ public class NodeManager implements Consumer<DiscoveryEvent> {
       trimTable();
       ret = new NodeHandler(n, this);
       nodeHandlerMap.put(key, ret);
-      logger.debug(" +++ New node: " + ret + " " + n);
+      logger.info(" +++ New node, {}: {} {} {}", nodeHandlerMap.size(),n.getHost(),n.getPort(), n.getId());
       if (!n.isDiscoveryNode() && !n.getHexId().equals(homeNode.getHexId())) {
         //ethereumListener.onNodeDiscovered(ret.getNode());
       }
@@ -173,7 +173,7 @@ public class NodeManager implements Consumer<DiscoveryEvent> {
       if (!n.getHexId().equals(homeNode.getHexId())) {
         //ethereumListener.onNodeDiscovered(ret.getNode());
       }
-      logger.debug(" +++ Found real nodeId for discovery endpoint {}", n);
+      logger.debug(" +++ Found real nodeId", n.getHost(),n.getPort(), n.getHexIdShort());
     }
 
     return ret;
@@ -258,41 +258,18 @@ public class NodeManager implements Consumer<DiscoveryEvent> {
 
   }
 
-  public synchronized List<NodeHandler> getNodes(int minReputation) {
-    List<NodeHandler> ret = new ArrayList<>();
-    for (NodeHandler nodeHandler : nodeHandlerMap.values()) {
-      if (nodeHandler.getNodeStatistics().getReputation() >= minReputation) {
-        ret.add(nodeHandler);
-      }
-    }
-    return ret;
-  }
-
-  /**
-   * Returns limited list of nodes matching {@code predicate} criteria<br> The nodes are sorted then
-   * by their totalDifficulties
-   *
-   * @param predicate only those nodes which are satisfied to its condition are included in results
-   * @param limit max size of returning list
-   * @return list of nodes matching criteria
-   */
-  public List<NodeHandler> getNodes(
-      Predicate<NodeHandler> predicate,
-      int limit) {
+  public List<NodeHandler> getNodes(Set<String> nodesInUse, int limit) {
     ArrayList<NodeHandler> filtered = new ArrayList<>();
     synchronized (this) {
       for (NodeHandler handler : nodeHandlerMap.values()) {
-        if (predicate.test(handler)) {
-          filtered.add(handler);
-        }
+         if(handler.getState() == NodeHandler.State.Active && !nodesInUse.contains(handler.getNode().getHexId())){
+           filtered.add(handler);
+         }
       }
     }
-    logger.info("size {}", filtered.size());
+    logger.info("filtered size = {} nodeHandlerMap size =  {}", filtered.size(), nodeHandlerMap.size());
     filtered.sort((o1, o2) -> o2.getNodeStatistics().getEthTotalDifficulty().compareTo(
         o1.getNodeStatistics().getEthTotalDifficulty()));
-
-    logger.info("nodeHandlerMap size {} filter peer  size {}",nodeHandlerMap.size(), filtered.size());
-
     return CollectionUtils.truncate(filtered, limit);
   }
 

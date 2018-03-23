@@ -117,7 +117,6 @@ public class Channel {
 //            handshakeHandler.generateTempKey();
         }
 
-
         handshakeHandler.setRemoteId(remoteId, this);
 
         messageCodec.setChannel(this);

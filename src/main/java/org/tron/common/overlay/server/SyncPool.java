@@ -56,7 +56,7 @@ public class SyncPool {
 
   public static final Logger logger = LoggerFactory.getLogger("SyncPool");
 
-  private static final long WORKER_TIMEOUT = 3; // 3 seconds
+  private static final long WORKER_TIMEOUT = 10; // 3 seconds
 
   private final List<PeerConnection> activePeers = Collections.synchronizedList(new ArrayList<PeerConnection>());
 
@@ -103,8 +103,8 @@ public class SyncPool {
         //heartBeat();
 //        updateLowerUsefulDifficulty();
         fillUp();
-        prepareActive();
-        cleanupActive();
+        //prepareActive();
+        //cleanupActive();
       } catch (Throwable t) {
         logger.error("Unhandled exception", t);
       }
@@ -277,13 +277,11 @@ public class SyncPool {
     //int lackSize = args.getNodeMaxActiveNodes() - channelManager.getActivePeers().size();
     //if(lackSize <= 0) return;
     int lackSize = 10;
-    final Set<String> nodesInUse = nodesInUse();
-    nodesInUse.add(Hex.toHexString(nodeManager.getPublicHomeNode().getId()));   // exclude home node
 
+    Set<String> nodesInUse = nodesInUse();
+    nodesInUse.add(nodeManager.getPublicHomeNode().getHexId());
 
-    //TODO: here can only use TCP connect seed peer.
-    List<NodeHandler> newNodes;
-    newNodes = nodeManager.getNodes(new NodeSelector(nodesInUse), lackSize);
+    List<NodeHandler> newNodes = nodeManager.getNodes(nodesInUse, lackSize);
 
     if (logger.isTraceEnabled()) {
       logDiscoveredNodes(newNodes);
@@ -291,12 +289,9 @@ public class SyncPool {
 
     logger.info("connection nodes size : {}", newNodes.size());
     //todo exclude home node from k bucket
+
     for(NodeHandler n : newNodes) {
-      logger.info("***^^^^^^^^^^^");
-      if (!Arrays.equals(nodeManager.getPublicHomeNode().getId(),n.getNode().getId())){
-          channelManager.connect(n.getNode());
-          logger.info("***^^^^^^^^^^^");
-      }
+      channelManager.connect(n.getNode());
     }
   }
 
