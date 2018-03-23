@@ -103,7 +103,7 @@ public class SyncPool {
       try {
         //heartBeat();
 //        updateLowerUsefulDifficulty();
-        fillUp();
+        //fillUp();
         //prepareActive();
         //cleanupActive();
       } catch (Throwable t) {

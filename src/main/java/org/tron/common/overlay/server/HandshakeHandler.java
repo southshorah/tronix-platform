@@ -27,7 +27,6 @@ import org.spongycastle.util.encoders.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
-import org.tron.common.overlay.discover.Node;
 import org.tron.common.overlay.discover.NodeManager;
 import org.tron.common.overlay.message.HelloMessage;
 import org.tron.common.overlay.message.P2pMessage;
@@ -134,10 +133,11 @@ public class HandshakeHandler extends ByteToMessageDecoder {
   public void handleHelloMsg(HelloMessage msg, ChannelHandlerContext ctx) throws Exception{
     if (remoteId.length != 64 && !isInitiator) {
       logger.info("get msg node id , {}", msg.getPeerId());
+      logger.info("port {}", msg.getListenPort());
       channel.initWithNode(Hex.decode(msg.getPeerId()), msg.getListenPort());
       channel.getNodeStatistics().rlpxAuthMessagesSent.add();
-      channel.sendHelloMessage(ctx, Hex.toHexString(nodeManager.getPublicHomeNode().getId()));
-      nodeManager.getNodeHandler(new Node(Hex.decode(msg.getPeerId()), channel.getInetSocketAddress().getHostString(), msg.getListenPort()));
+      //channel.sendHelloMessage(ctx, Hex.toHexString(nodeManager.getPublicHomeNode().getId()));
+     // nodeManager.getNodeHandler(new Node(Hex.decode(msg.getPeerId()), channel.getInetSocketAddress().getHostString(), msg.getListenPort()));
     }
     isInitiator = true;
     //msgQueue.activate(ctx);

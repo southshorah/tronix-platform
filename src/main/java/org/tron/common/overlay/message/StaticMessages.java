@@ -47,7 +47,7 @@ public class StaticMessages {
   public static final byte[] SYNC_TOKEN = Hex.decode("22400891");
 
   public HelloMessage createHelloMessage(ChannelHandlerContext ctx, String peerId) {
-    return createHelloMessage(ctx, peerId, args.getNodeListenPort());
+    return createHelloMessage(ctx, peerId, Args.getInstance().getNodeListenPort());
   }
 
   public HelloMessage createHelloMessage(ChannelHandlerContext ctx, String peerId,

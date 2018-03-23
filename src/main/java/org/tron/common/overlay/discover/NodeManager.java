@@ -90,7 +90,7 @@ public class NodeManager implements Consumer<DiscoveryEvent> {
 
     discoveryEnabled = args.isNodeDiscoveryEnable();
     args.nodeId();
-    homeNode = Node.instanceOf("0.0.0.0:"+ args.getNodeListenPort());//new Node(args.nodeId(), "127.0.0.1", args.getNodeListenPort());
+    homeNode = Node.instanceOf("0:"+ args.getNodeListenPort());//new Node(args.nodeId(), "127.0.0.1", args.getNodeListenPort());
 //    homeNode = dbManager.getHomeNode();
 //
 //    logger.info("homeNode : {}", homeNode.toString());
@@ -159,6 +159,10 @@ public class NodeManager implements Consumer<DiscoveryEvent> {
   public synchronized NodeHandler getNodeHandler(Node n) {
     String key = getKey(n);
     NodeHandler ret = nodeHandlerMap.get(key);
+    logger.info("node handler size = {}", nodeHandlerMap.size());
+    logger.info("node handler size = {}", nodeHandlerMap.size());
+    logger.info("node handler size = {}", nodeHandlerMap.size());
+    logger.info("node handler size = {}", nodeHandlerMap.size());
     if (ret == null) {
       trimTable();
       ret = new NodeHandler(n, this);
