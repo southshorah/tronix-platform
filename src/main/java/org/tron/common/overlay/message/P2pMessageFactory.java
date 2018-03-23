@@ -24,9 +24,6 @@ import org.tron.core.net.message.MessageTypes;
 public class P2pMessageFactory {
 
   public static P2pMessage create(byte[] data) {
-    if (data == null || data.length == 0){
-      return;
-    }
     byte type = data[0];
     byte[] rawData = ArrayUtils.subarray(data, 1, data.length);
     MessageTypes messageType = MessageTypes.fromByte(type);

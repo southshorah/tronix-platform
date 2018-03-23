@@ -201,17 +201,6 @@ public class SyncPool {
     }
   }
 
-  public synchronized Set<String> nodesInUse() {
-    Set<String> ids = new HashSet<>();
-    if (channelManager.getActivePeers() == null){
-      return ids;
-    }
-    for (Channel peer : channelManager.getActivePeers()) {
-      ids.add(peer.getPeerId());
-    }
-    return ids;
-  }
-
   synchronized void logActivePeers() {
     if (logger.isInfoEnabled()) {
       StringBuilder sb = new StringBuilder("Peer stats:\n");
@@ -287,7 +276,7 @@ public class SyncPool {
     //if(lackSize <= 0) return;
     int lackSize = 10;
 
-    Set<String> nodesInUse = nodesInUse();
+    Set<String> nodesInUse = channelManager.nodesInUse();
     nodesInUse.add(nodeManager.getPublicHomeNode().getHexId());
 
     List<NodeHandler> newNodes = nodeManager.getNodes(nodesInUse, lackSize);
