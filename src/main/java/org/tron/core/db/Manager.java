@@ -36,6 +36,7 @@ import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.DialogOptional;
 import org.tron.common.utils.RandomGenerator;
 import org.tron.common.utils.Sha256Hash;
+import org.tron.common.utils.Time;
 import org.tron.core.actuator.Actuator;
 import org.tron.core.actuator.ActuatorFactory;
 import org.tron.core.capsule.AccountCapsule;
@@ -252,21 +253,7 @@ public class Manager {
     this.khaosDb = new KhaosDatabase("block" + "_KDB");
 
     this.pendingTrxs = new ArrayList<>();
-    try {
-      this.initGenesis();
-    } catch (ContractValidateException e) {
-      logger.error(e.getMessage());
-      System.exit(-1);
-    } catch (ContractExeException e) {
-      logger.error(e.getMessage());
-      System.exit(-1);
-    } catch (ValidateSignatureException e) {
-      logger.error(e.getMessage());
-      System.exit(-1);
-    } catch (UnLinkedBlockException e) {
-      logger.error(e.getMessage());
-      System.exit(-1);
-    }
+    this.initGenesis();
     this.updateWits();
     this.setShuffledWitnessStates(getWitnesses());
     this.initHeadBlock(Sha256Hash.wrap(this.dynamicPropertiesStore.getLatestBlockHeaderHash()));
@@ -284,9 +271,7 @@ public class Manager {
   /**
    * init genesis block.
    */
-  public void initGenesis()
-      throws ContractValidateException, ContractExeException,
-      ValidateSignatureException, UnLinkedBlockException {
+  public void initGenesis() {
     this.genesisBlock = BlockUtil.newGenesisBlockCapsule();
     if (this.containBlock(this.genesisBlock.getBlockId())) {
       Args.getInstance().setChainId(this.genesisBlock.getBlockId().toString());
@@ -301,7 +286,8 @@ public class Manager {
 
         //this.pushBlock(this.genesisBlock);
         blockStore.put(this.genesisBlock.getBlockId().getBytes(), this.genesisBlock);
-        this.numHashCache.putData(ByteArray.fromLong(this.genesisBlock.getNum()), this.genesisBlock.getBlockId().getBytes());
+        this.numHashCache.putData(ByteArray.fromLong(this.genesisBlock.getNum()),
+            this.genesisBlock.getBlockId().getBytes());
         //refreshHead(newBlock);
         logger.info("save block: " + this.genesisBlock);
 
@@ -428,7 +414,7 @@ public class Manager {
 
   void doValidateFreq(long balance, int transNumber, long latestOperationTime)
       throws HighFreqException {
-    long now = System.currentTimeMillis();
+    long now = Time.getCurrentMillis();
     // todo: avoid ddos, design more smoothly formula later.
     if (balance < 1000000 * 1000) {
       if (now - latestOperationTime < 5 * 60 * 1000) {
@@ -865,6 +851,12 @@ public class Manager {
         .collect(Collectors.toList());
 
     int solidifiedPosition = (int) (wits.size() * (1 - SOLIDIFIED_THRESHOLD)) - 1;
+    if (solidifiedPosition < 0) {
+      logger.warn("updateLatestSolidifiedBlock error,solidifiedPosition:{},wits.size:{}",
+          solidifiedPosition, wits.size());
+      return;
+    }
+
     long latestSolidifiedBlockNum = numbers.get(solidifiedPosition);
 
     getDynamicPropertiesStore().saveLatestSolidifiedBlockNum(latestSolidifiedBlockNum);
@@ -942,7 +934,7 @@ public class Manager {
    */
   public long getSlotTime(long slotNum) {
     if (slotNum == 0) {
-      return System.currentTimeMillis();
+      return Time.getCurrentMillis();
     }
     long interval = blockInterval();
 
@@ -983,10 +975,10 @@ public class Manager {
 
     final Map<ByteString, Long> countWitness = Maps.newHashMap();
     final List<AccountCapsule> accountList = this.accountStore.getAllAccounts();
-    logger.info("there is account List size is {}", accountList.size());
+    //logger.info("there is account List size is {}", accountList.size());
     accountList.forEach(account -> {
-      logger.info("there is account ,account address is {}",
-          account.createReadableString());
+//      logger.info("there is account ,account address is {}",
+//          account.createReadableString());
 
       Optional<Long> sum = account.getVotesList().stream().map(vote -> vote.getVoteCount())
           .reduce((a, b) -> a + b);
@@ -1104,7 +1096,7 @@ public class Manager {
       if (b.getVoteCount() != a.getVoteCount()) {
         return (int) (b.getVoteCount() - a.getVoteCount());
       } else {
-        return b.getAddress().hashCode() - a.getAddress().hashCode();
+        return Long.compare(b.getAddress().hashCode(),a.getAddress().hashCode());
       }
     });
   }
@@ -1125,6 +1117,7 @@ public class Manager {
       throw new RuntimeException("Witnesses is empty");
     }
 
+    List<String> currentWitsAddress = getWitnessStringList(getWitnesses());
     // TODO  what if the number of witness is not same in different slot.
     if (getHeadBlockNum() != 0 && getHeadBlockNum() % getWitnesses().size() == 0) {
       logger.info("updateWitnessSchedule number:{},HeadBlockTimeStamp:{}", getHeadBlockNum(),
@@ -1133,7 +1126,7 @@ public class Manager {
           .shuffle(getWitnesses(), getHeadBlockTimeStamp()));
 
       logger.info(
-          "updateWitnessSchedule,before:{} ", getWitnessStringList(getWitnesses()).toString()
+          "updateWitnessSchedule,before:{} ", currentWitsAddress
               + ",\nafter:{} " + getWitnessStringList(getShuffledWitnessStates()));
     }
   }
