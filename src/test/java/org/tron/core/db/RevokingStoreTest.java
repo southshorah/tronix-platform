@@ -16,6 +16,7 @@ import org.tron.core.config.args.Args;
 import org.tron.core.db.AbstractRevokingStore.Dialog;
 import org.tron.core.exception.RevokingStoreIllegalStateException;
 
+@Ignore
 @Slf4j
 public class RevokingStoreTest {
 

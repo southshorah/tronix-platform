@@ -14,6 +14,7 @@ import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.config.args.Args;
 import org.tron.protos.Protocol.AccountType;
 
+@Ignore
 public class AccountStoreTest {
 
   private static String dbPath = "output_AccountStore_test";

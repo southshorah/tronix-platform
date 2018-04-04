@@ -39,6 +39,7 @@ import org.tron.protos.Contract;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Transaction.Result.code;
+
 @Ignore
 @Slf4j
 public class TransferAssetActuatorTest {

@@ -8,6 +8,7 @@ import java.util.stream.IntStream;
 import org.junit.Ignore;
 import org.junit.Test;
 
+@Ignore
 public class BlockFilledSlotsTest {
 
   @Test
