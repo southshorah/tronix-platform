@@ -28,7 +28,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.joda.time.DateTime;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.overlay.discover.Node;
@@ -77,11 +76,11 @@ public class Manager {
   private AssetIssueStore assetIssueStore;
   private DynamicPropertiesStore dynamicPropertiesStore;
 
-  @Autowired
   private PeersStore peersStore;
   private BlockCapsule genesisBlock;
 
-
+  //TODO 
+  // @Autowired
   private LevelDbDataSourceImpl numHashCache;
   private KhaosDatabase khaosDb;
   @Getter
