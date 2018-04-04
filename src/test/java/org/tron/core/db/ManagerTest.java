@@ -23,7 +23,6 @@ import org.tron.core.exception.ContractValidateException;
 import org.tron.core.exception.UnLinkedBlockException;
 import org.tron.core.exception.ValidateSignatureException;
 
-@Ignore
 @Slf4j
 public class ManagerTest {
 

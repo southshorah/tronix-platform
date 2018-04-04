@@ -11,8 +11,6 @@ import org.tron.core.Constant;
 import org.tron.core.capsule.TransactionCapsule;
 import org.tron.core.config.args.Args;
 
-
-@Ignore
 public class TransactionStoreTest {
 
   private static String dbPath = "output_TransactionStore_test";

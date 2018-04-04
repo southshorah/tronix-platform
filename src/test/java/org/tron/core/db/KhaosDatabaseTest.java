@@ -18,7 +18,6 @@ import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.BlockHeader.raw;
 
-@Ignore
 @Slf4j
 public class KhaosDatabaseTest {
 
