@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.tron.common.utils.DialogOptional;
 import org.tron.common.utils.FileUtil;
@@ -15,6 +16,7 @@ import org.tron.core.config.args.Args;
 import org.tron.core.db.AbstractRevokingStore.Dialog;
 import org.tron.core.exception.RevokingStoreIllegalStateException;
 
+@Ignore
 @Slf4j
 public class RevokingStoreTest {
 

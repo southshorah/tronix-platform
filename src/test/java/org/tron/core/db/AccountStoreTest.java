@@ -5,6 +5,7 @@ import java.io.File;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.FileUtil;
@@ -13,6 +14,7 @@ import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.config.args.Args;
 import org.tron.protos.Protocol.AccountType;
 
+@Ignore
 public class AccountStoreTest {
 
   private static String dbPath = "output_AccountStore_test";
@@ -21,6 +23,7 @@ public class AccountStoreTest {
   private static byte[] address = TransactionStoreTest.randomBytes(32);
   private static byte[] accountName = TransactionStoreTest.randomBytes(32);
 
+@Ignore
   @AfterClass
   public static void destroy() {
     Args.clearParam();
