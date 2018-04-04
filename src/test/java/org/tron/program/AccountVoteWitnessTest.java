@@ -15,7 +15,6 @@ import org.tron.core.config.args.Args;
 import org.tron.core.db.Manager;
 import org.tron.protos.Protocol.AccountType;
 
-@Ignore
 @Slf4j
 public class AccountVoteWitnessTest {
 
