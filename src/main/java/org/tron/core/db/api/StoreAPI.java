@@ -6,6 +6,7 @@ import static com.googlecode.cqengine.query.QueryFactory.between;
 import static com.googlecode.cqengine.query.QueryFactory.contains;
 import static com.googlecode.cqengine.query.QueryFactory.descending;
 import static com.googlecode.cqengine.query.QueryFactory.equal;
+import static com.googlecode.cqengine.query.QueryFactory.or;
 import static com.googlecode.cqengine.query.QueryFactory.orderBy;
 import static com.googlecode.cqengine.query.QueryFactory.queryOptions;
 import static com.googlecode.cqengine.query.QueryFactory.threshold;
@@ -89,8 +90,9 @@ public class StoreAPI {
     }
 
     IndexedCollection<Block> index = indexHelper.getBlockIndex();
+
     ResultSet<Block> resultSet =
-        index.retrieve(all(Block.class), queryOptions(orderBy(descending(BlockIndex.Block_NUMBER)),
+        index.retrieve(all(Block.class), queryOptions(orderBy(descending(BlockIndex.BLOCK_NUMBER)),
             applyThresholds(threshold(INDEX_ORDERING_SELECTIVITY, 1.0))));
 
     return Streams.stream(resultSet)
@@ -150,10 +152,9 @@ public class StoreAPI {
     }
 
     IndexedCollection<Transaction> index = indexHelper.getTransactionIndex();
+
     ResultSet<Transaction> resultSet =
-        index.retrieve(all(Transaction.class),
-            queryOptions(
-                between(TransactionIndex.TIMESTAMP, beginInMilliseconds, endInMilliseconds)));
+        index.retrieve(between(TransactionIndex.TIMESTAMP, beginInMilliseconds, endInMilliseconds));
 
     return Streams.stream(resultSet)
         .collect(Collectors.toList());
@@ -162,7 +163,7 @@ public class StoreAPI {
   public Block getBlockByNumber(long number) {
     IndexedCollection<Block> index = indexHelper.getBlockIndex();
     ResultSet<Block> resultSet =
-        index.retrieve(equal(BlockIndex.Block_NUMBER, number));
+        index.retrieve(equal(BlockIndex.BLOCK_NUMBER, number));
     if (resultSet.isEmpty()) {
       return null;
     }
@@ -176,9 +177,8 @@ public class StoreAPI {
 
   public Block getBlockByTransactionId(String transactionId) {
     IndexedCollection<Block> index = indexHelper.getBlockIndex();
-    //TODO TRANSACTIONS is all transactions not ids
     ResultSet<Block> resultSet =
-        index.retrieve(contains(BlockIndex.TRANSACTIONS, transactionId));
+        index.retrieve(equal(BlockIndex.TRANSACTIONS, transactionId));
     if (resultSet.isEmpty()) {
       return null;
     }
@@ -194,8 +194,7 @@ public class StoreAPI {
     IndexedCollection<Block> index = indexHelper.getBlockIndex();
     //TODO from or to address of transaction in blocks
     ResultSet<Block> resultSet =
-        index.retrieve(all(Block.class), queryOptions(orderBy(descending(BlockIndex.Block_NUMBER)),
-            applyThresholds(threshold(INDEX_ORDERING_SELECTIVITY, 1.0))));
+        index.retrieve(equal(BlockIndex.RELATED_ACCOUNT, accountAddress));
 
     return Streams.stream(resultSet)
         .collect(Collectors.toList());
