@@ -66,7 +66,14 @@ public class ActuatorFactory {
         return new WitnessUpdateActuator(contract.getParameter(), manager);
       case ParticipateAssetIssueContract:
         return new ParticipateAssetIssueActuator(contract.getParameter(), manager);
+      case CreateProposalContract:
+        return new ProposalCreateActuator(contract.getParameter(), manager);
+      case ApprovalProposalContract:
+        return new ApprovalProposalActuator(contract.getParameter(), manager);
+      case DeleteProposalContract:
+        return new DeleteProposalActuator(contract.getParameter(), manager);
       default:
+
 
     }
     return null;

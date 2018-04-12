@@ -60,7 +60,7 @@ public class Manager {
 
   private static final long BLOCK_INTERVAL_SEC = 1;
   public static final int MAX_ACTIVE_WITNESS_NUM = 21;
-  private static final long TRXS_SIZE = 2_000_000; // < 2MiB
+  public static long TRXS_SIZE = 2_000_000; // < 2MiB
   public static final long LOOP_INTERVAL = 5000L; // ms,produce block period, must be divisible by 60. millisecond
 
   private AccountStore accountStore;
@@ -68,6 +68,7 @@ public class Manager {
   private BlockStore blockStore;
   private UtxoStore utxoStore;
   private WitnessStore witnessStore;
+  private ProposalStore proposalStore;
   private AssetIssueStore assetIssueStore;
   private DynamicPropertiesStore dynamicPropertiesStore;
 
@@ -103,6 +104,14 @@ public class Manager {
 
   private void setWitnessStore(final WitnessStore witnessStore) {
     this.witnessStore = witnessStore;
+  }
+
+  public ProposalStore getProposalStore() {
+    return proposalStore;
+  }
+
+  public void setProposalStore(ProposalStore proposalStore) {
+    this.proposalStore = proposalStore;
   }
 
   public DynamicPropertiesStore getDynamicPropertiesStore() {
@@ -187,6 +196,7 @@ public class Manager {
     getTransactionStore().destroy();
     getBlockStore().destroy();
     getWitnessStore().destory();
+    getProposalStore().destory();
     getAssetIssueStore().destroy();
     getDynamicPropertiesStore().destroy();
   }
@@ -200,6 +210,7 @@ public class Manager {
     this.setBlockStore(BlockStore.create("block"));
     this.setUtxoStore(UtxoStore.create("utxo"));
     this.setWitnessStore(WitnessStore.create("witness"));
+    this.setProposalStore(ProposalStore.create("proposal"));
     this.setAssetIssueStore(AssetIssueStore.create("asset-issue"));
     this.setDynamicPropertiesStore(DynamicPropertiesStore.create("properties"));
     this.setWitnessController(WitnessController.createInstance(this));
