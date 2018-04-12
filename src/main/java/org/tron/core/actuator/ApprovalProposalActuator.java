@@ -109,6 +109,7 @@ public class ApprovalProposalActuator extends AbstractActuator {
     return proposalCapsule;
   }
 
+  //todo: will be replaced
   private void applyProposal(ProposalCapsule proposalCapsule) {
     this.dbManager.TRXS_SIZE = proposalCapsule.getInstance().getParameters().getTrxsSize();
   }

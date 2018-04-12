@@ -517,14 +517,14 @@ public class Manager {
 
   public void updateDynamicProperties(BlockCapsule block) {
     long slot = 1;
-    if (block.getNum() != 1){
+    if (block.getNum() != 1) {
       slot = witnessController.getSlotAtTime(block.getTimeStamp());
     }
-    for (int i = 1; i < slot; ++i){
+    for (int i = 1; i < slot; ++i) {
       if (!witnessController.getScheduledWitness(i).equals(block.getWitnessAddress())) {
         WitnessCapsule w = this.witnessStore
             .get(StringUtil.createDbKey(witnessController.getScheduledWitness(i)));
-        w.setTotalMissed(w.getTotalMissed()+1);
+        w.setTotalMissed(w.getTotalMissed() + 1);
         this.witnessStore.put(w.createDbKey(), w);
         logger.info("{} miss a block. totalMissed = {}",
             w.createReadableString(), w.getTotalMissed());
@@ -792,6 +792,26 @@ public class Manager {
     }
     updateMaintenanceState(needMaint);
     witnessController.updateWitnessSchedule();
+
+    clearExpiredProposals();
+  }
+
+  private void clearExpiredProposals() {
+    proposalStore.getAllProposals().stream().forEach(proposalCapsule -> {
+      if (proposalCapsule.hasExpired(getHeadBlockTimeStamp())) {
+        try {
+          if (proposalCapsule.meetTheConditions()) {
+            //todo: apply proposal
+          }
+
+        } catch (Exception ex) {
+          logger.error("clearExpiredProposals[{}] error,delete id",
+              proposalCapsule.createReadableString());
+        }
+        proposalStore.delete(proposalCapsule.createDbKey());
+      }
+    });
+
   }
 
   /**
@@ -840,11 +860,11 @@ public class Manager {
     //TODO: add verification
     WitnessCapsule witnessCapsule = witnessStore
         .get(block.getInstance().getBlockHeader().getRawData().getWitnessAddress().toByteArray());
-    witnessCapsule.setTotalProduced(witnessCapsule.getTotalProduced()+1);
+    witnessCapsule.setTotalProduced(witnessCapsule.getTotalProduced() + 1);
     witnessCapsule.setLatestBlockNum(block.getNum());
     witnessCapsule.setLatestSlotNum(witnessController.getAbSlotAtTime(block.getTimeStamp()));
 
-    this.getWitnessStore().put(witnessCapsule.getAddress().toByteArray(),witnessCapsule);
+    this.getWitnessStore().put(witnessCapsule.getAddress().toByteArray(), witnessCapsule);
 
     AccountCapsule sun = accountStore.getSun();
     try {
@@ -863,10 +883,10 @@ public class Manager {
 
   }
 
-  public void updateMaintenanceState(boolean needMaint){
-    if(needMaint) {
+  public void updateMaintenanceState(boolean needMaint) {
+    if (needMaint) {
       getDynamicPropertiesStore().saveStateFlag(1);
-    }else{
+    } else {
       getDynamicPropertiesStore().saveStateFlag(0);
     }
   }

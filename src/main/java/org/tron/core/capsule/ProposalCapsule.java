@@ -89,6 +89,10 @@ public class ProposalCapsule implements ProtoCapsule<Proposal> {
         .build();
   }
 
+  public boolean hasExpired(long headBlockTime) {
+    return getInstance().getExpirationTime() <= headBlockTime;
+  }
+
   public boolean meetTheConditions() {
     //todo: verify conditions, and
     return this.proposal.getActiveApprovalsCount()
