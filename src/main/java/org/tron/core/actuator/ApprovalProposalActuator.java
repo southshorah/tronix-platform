@@ -61,6 +61,14 @@ public class ApprovalProposalActuator extends AbstractActuator {
           .get(contract.getProposalId().toByteArray());
       List<ByteString> approvalsList = proposalCapsule.getInstance().getActiveApprovalsList();
 
+      if (proposalCapsule.getInstance().getEffectivePeriodTime() != 0
+          && this.dbManager.getHeadBlockTimeStamp() >= proposalCapsule.getInstance()
+          .getEffectivePeriodTime()) {
+        Preconditions.checkArgument(
+            contract.getApprovalsToAddCount() == 0 && contract.getApprovalsToRemoveCount() == 0,
+            "This proposal has exceed valid polling time");
+      }
+
       contract.getApprovalsToAddList().forEach(approval -> {
         Preconditions.checkArgument(approvalsList.contains(approval),
             "approvalToAdd[" + approval + "]  has existed");
