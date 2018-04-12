@@ -24,11 +24,12 @@ public class ProposalCapsule implements ProtoCapsule<Proposal> {
   }
 
   public ProposalCapsule(ByteString proposerAddress, ChainParameters chainParameters,
-      long expirationTime, List<ByteString> approvals) {
+      long expirationTime, List<ByteString> requiredApprovals) {
     Proposal newProposal = Proposal.newBuilder().setProposerAddress(proposerAddress)
         .setParameters(chainParameters)
         .setExpirationTime(expirationTime)
-        .addAllApprovals(approvals)
+        .setEffectivePeriodTime(expirationTime)
+        .addAllRequiredApprovals(requiredApprovals)
         .build();
     this.proposal = newProposal.toBuilder().setProposalId(createProposalId(newProposal)).build();
   }
@@ -72,24 +73,25 @@ public class ProposalCapsule implements ProtoCapsule<Proposal> {
   }
 
   public void addApprovals(List<ByteString> list) {
-    this.proposal = this.proposal.toBuilder().addAllApprovals(list).build();
+    this.proposal = this.proposal.toBuilder().addAllActiveApprovals(list).build();
   }
 
   public void removeApprovals(List<ByteString> removeApprovals) {
-    final List<ByteString> approvalsList = this.proposal.toBuilder().getApprovalsList();
+    final List<ByteString> approvalsList = this.proposal.toBuilder().getActiveApprovalsList();
     removeApprovals.forEach(approval -> {
       if (!approvalsList.contains(approval)) {
         logger.warn("proposal does not contain approval:{}", approval);
       }
       approvalsList.remove(approval);
     });
-    this.proposal = this.proposal.toBuilder().clearApprovals().addAllApprovals(approvalsList)
+    this.proposal = this.proposal.toBuilder().clearActiveApprovals()
+        .addAllActiveApprovals(approvalsList)
         .build();
   }
 
   public boolean meetTheConditions() {
-    int minApprovalCount = 10;
     //todo: verify conditions, and
-    return this.proposal.getApprovalsCount() > minApprovalCount;
+    return this.proposal.getActiveApprovalsCount()
+        > this.proposal.getRequiredApprovalsCount() * 2 / 3;
   }
 }

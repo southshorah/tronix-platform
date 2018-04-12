@@ -59,7 +59,7 @@ public class ApprovalProposalActuator extends AbstractActuator {
 
       ProposalCapsule proposalCapsule = this.dbManager.getProposalStore()
           .get(contract.getProposalId().toByteArray());
-      List<ByteString> approvalsList = proposalCapsule.getInstance().getApprovalsList();
+      List<ByteString> approvalsList = proposalCapsule.getInstance().getActiveApprovalsList();
 
       contract.getApprovalsToAddList().forEach(approval -> {
         Preconditions.checkArgument(approvalsList.contains(approval),
