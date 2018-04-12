@@ -6,6 +6,8 @@ import java.nio.charset.Charset;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.common.utils.ByteArray;
+import org.tron.core.witness.CommitteeController;
+import org.tron.protos.Contract.CreateProposalContract;
 import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.Proposal;
 
@@ -20,7 +22,6 @@ public class ProposalCapsule implements ProtoCapsule<Proposal> {
     } else {
       this.proposal = proposal;
     }
-
   }
 
   public ProposalCapsule(ByteString proposerAddress, ChainParameters chainParameters,
@@ -40,6 +41,13 @@ public class ProposalCapsule implements ProtoCapsule<Proposal> {
     } catch (InvalidProtocolBufferException e) {
       logger.debug(e.getMessage(), e);
     }
+  }
+
+  public static CreateProposalContract createCommitteeProposal(long headBlockTime) {
+    return CreateProposalContract.newBuilder()
+        .setExpirationTime(headBlockTime + CommitteeController.MAXIMUM_PROPOSAL_LIFETIME)
+        .setEffectivePeriod(CommitteeController.COMMITTEE_PROPOSAL_REVIEW_PERIOD)
+        .build();
   }
 
   public byte[] createDbKey() {
