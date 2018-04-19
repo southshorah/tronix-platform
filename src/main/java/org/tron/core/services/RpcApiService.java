@@ -1,6 +1,7 @@
 package org.tron.core.services;
 
 import com.google.common.base.Preconditions;
+import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -48,6 +49,8 @@ import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.DynamicProperties;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.security.SecurityFactory;
+
 
 
 @Slf4j
@@ -422,6 +425,49 @@ public class RpcApiService implements Service {
     public void totalTransaction(EmptyMessage request,
         StreamObserver<NumberMessage> responseObserver) {
       responseObserver.onNext(wallet.totalTransaction());
+      responseObserver.onCompleted();
+    }
+
+    /**
+     */
+    @Override
+    public void createContract(Contract.ContractCreationContract request,
+                               io.grpc.stub.StreamObserver<org.tron.protos.Protocol.Transaction> responseObserver) {
+      if (!SecurityFactory.getInstance().validateContract(Any.pack(request))) {
+        responseObserver.onNext(null);
+        responseObserver.onCompleted();
+        return;
+      }
+
+      Transaction trx = wallet.createContarct(request);
+      responseObserver.onNext(trx);
+      responseObserver.onCompleted();
+    }
+
+    /**
+     */
+    @Override
+    public void callContract(Contract.ContractCallContract request,
+                             io.grpc.stub.StreamObserver<org.tron.protos.Protocol.Transaction> responseObserver) {
+      if (!SecurityFactory.getInstance().validateContract(Any.pack(request))) {
+        responseObserver.onNext(null);
+        responseObserver.onCompleted();
+        return;
+      }
+
+      Transaction trx = wallet.callContract(request);
+      responseObserver.onNext(trx);
+      responseObserver.onCompleted();
+    }
+
+    /**
+     */
+    @Override
+    public void getContract(org.tron.api.GrpcAPI.BytesMessage request,
+                            io.grpc.stub.StreamObserver<org.tron.protos.Contract.ContractCreationContract> responseObserver) {
+      // TODO: NO CHECK FOR SECURITY
+      Contract.ContractCreationContract contract = wallet.getContract(request);
+      responseObserver.onNext(contract);
       responseObserver.onCompleted();
     }
 

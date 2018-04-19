@@ -29,8 +29,12 @@ import org.tron.common.utils.DialogOptional;
 import org.tron.common.utils.Sha256Hash;
 import org.tron.common.utils.StringUtil;
 import org.tron.common.utils.Time;
+import org.tron.common.vm.program.invoke.ProgramInvokeFactory;
+import org.tron.common.vm.program.invoke.ProgramInvokeFactoryImpl;
 import org.tron.core.actuator.Actuator;
 import org.tron.core.actuator.ActuatorFactory;
+import org.tron.core.actuator.TransactionExecutionSummary;
+import org.tron.core.actuator.TransactionExecutor;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.BlockCapsule.BlockId;
@@ -52,7 +56,9 @@ import org.tron.core.exception.RevokingStoreIllegalStateException;
 import org.tron.core.exception.UnLinkedBlockException;
 import org.tron.core.exception.ValidateScheduleException;
 import org.tron.core.exception.ValidateSignatureException;
+import org.tron.core.db.Repository;
 import org.tron.core.witness.WitnessController;
+import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Transaction;
 
@@ -75,6 +81,12 @@ public class Manager {
   private AssetIssueStore assetIssueStore;
   private DynamicPropertiesStore dynamicPropertiesStore;
   private BlockIndexStore blockIndexStore;
+  private CodeStore codeStore;
+  private ContractStore contractStore;
+  private StorageStore storageStore;
+  private Repository repositoryRoot;
+
+  private ProgramInvokeFactory programInvokeFactory;
 
   @Autowired
   private PeersStore peersStore;
@@ -219,6 +231,10 @@ public class Manager {
     this.setUtxoStore(UtxoStore.create("utxo"));
     this.setWitnessStore(WitnessStore.create("witness"));
     this.setAssetIssueStore(AssetIssueStore.create("asset-issue"));
+    this.setContractStore(ContractStore.create("contract"));
+    this.setCodeStore(CodeStore.create("code"));
+    this.setStorageStore(StorageStore.create("storage"));
+    this.setRepositoryRoot(new RepositoryRoot(accountStore, codeStore, storageStore));
     this.setDynamicPropertiesStore(DynamicPropertiesStore.create("properties"));
     this.setWitnessController(WitnessController.createInstance(this));
     this.setBlockIndexStore(BlockIndexStore.create("block-index"));
@@ -229,6 +245,7 @@ public class Manager {
     this.initGenesis();
     this.witnessController.initWits();
     this.khaosDb.start(genesisBlock);
+    this.programInvokeFactory = new ProgramInvokeFactoryImpl();
   }
 
   public BlockId getGenesisBlockId() {
@@ -355,7 +372,7 @@ public class Manager {
 
     try (
         RevokingStore.Dialog tmpDialog = revokingStore.buildDialog()) {
-      processTransaction(trx);
+      processTransaction(trx, null);
       pendingTransactions.add(trx);
 
       tmpDialog.merge();
@@ -654,13 +671,14 @@ public class Manager {
   /**
    * Process transaction.
    */
-  public boolean processTransaction(final TransactionCapsule trxCap)
+  public boolean processTransaction(final TransactionCapsule trxCap, final Protocol.Block block)
       throws ValidateSignatureException, ContractValidateException, ContractExeException {
 
     TransactionResultCapsule transRet;
     if (trxCap == null || !trxCap.validateSignature()) {
       return false;
     }
+    /*
     final List<Actuator> actuatorList = ActuatorFactory.createActuator(trxCap, this);
     TransactionResultCapsule ret = new TransactionResultCapsule();
 
@@ -669,7 +687,19 @@ public class Manager {
       act.validate();
       act.execute(ret);
       trxCap.setResult(ret);
-    }
+    }*/
+
+    Repository txTrack = null;
+    byte[] coinbase = block != null ? block.getBlockHeader().getRawDataOrBuilder().getWitnessAddress().toByteArray() : null;
+    TransactionExecutor executor = new TransactionExecutor(trxCap, trxCap.getInstance(), coinbase, txTrack,
+            this, this.blockStore, this.contractStore, this.accountStore, programInvokeFactory, block);
+    //executor.withCommonConfig()
+    executor.init();
+    executor.execute();
+    executor.go();
+
+    TransactionExecutionSummary summary = executor.finalization();
+
     transactionStore.put(trxCap.getTransactionId().getBytes(), trxCap);
     return true;
   }
@@ -734,7 +764,7 @@ public class Manager {
       }
       // apply transaction
       try (Dialog tmpDialog = revokingStore.buildDialog()) {
-        processTransaction(trx);
+        processTransaction(trx, null);
         tmpDialog.merge();
         // push into block
         blockCapsule.addTransaction(trx);
@@ -805,7 +835,7 @@ public class Manager {
     this.updateLatestSolidifiedBlock();
 
     for (TransactionCapsule transactionCapsule : block.getTransactions()) {
-      processTransaction(transactionCapsule);
+      processTransaction(transactionCapsule, block.getInstance());
     }
 
     boolean needMaint = needMaintenance(block.getTimeStamp());
@@ -932,5 +962,37 @@ public class Manager {
 
   public void setBlockIndexStore(BlockIndexStore indexStore) {
     this.blockIndexStore = indexStore;
+  }
+
+  public ContractStore getContractStore() {
+    return contractStore;
+  }
+
+  public void setContractStore(ContractStore contractStore) {
+    this.contractStore = contractStore;
+  }
+
+  public CodeStore getCodeStore() {
+    return this.codeStore;
+  }
+
+  public void setCodeStore(CodeStore codeStore) {
+    this.codeStore = codeStore;
+  }
+
+  public StorageStore getStorageStore() {
+    return storageStore;
+  }
+
+  public void setStorageStore(StorageStore storageStore) {
+    this.storageStore = storageStore;
+  }
+
+  public Repository getRepositoryRoot() {
+    return repositoryRoot;
+  }
+
+  public void setRepositoryRoot(Repository repositoryRoot) {
+    this.repositoryRoot = repositoryRoot;
   }
 }

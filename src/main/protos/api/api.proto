@@ -83,6 +83,18 @@ service Wallet {
   rpc TotalTransaction (EmptyMessage) returns (NumberMessage) {
 
   }
+
+  rpc CreateContract(ContractCreationContract) returns (Transaction) {
+
+  }
+
+  rpc CallContract(ContractCallContract) returns (Transaction) {
+
+  }
+
+  rpc GetContract(BytesMessage) returns (ContractCreationContract) {
+
+  }
 };
 
 // the api of tron's db

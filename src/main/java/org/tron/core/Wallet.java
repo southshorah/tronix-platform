@@ -18,10 +18,14 @@
 
 package org.tron.core;
 
+import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import java.util.List;
+
+import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountList;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.NumberMessage;
@@ -33,10 +37,7 @@ import org.tron.common.overlay.message.Message;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Sha256Hash;
 import org.tron.common.utils.Utils;
-import org.tron.core.capsule.AccountCapsule;
-import org.tron.core.capsule.AssetIssueCapsule;
-import org.tron.core.capsule.TransactionCapsule;
-import org.tron.core.capsule.WitnessCapsule;
+import org.tron.core.capsule.*;
 import org.tron.core.db.AccountStore;
 import org.tron.core.db.BlockStore;
 import org.tron.core.db.Manager;
@@ -48,6 +49,7 @@ import org.tron.core.exception.ItemNotFoundException;
 import org.tron.core.exception.ValidateSignatureException;
 import org.tron.core.net.message.TransactionMessage;
 import org.tron.core.net.node.Node;
+import org.tron.protos.Contract;
 import org.tron.protos.Contract.AccountCreateContract;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Contract.ParticipateAssetIssueContract;
@@ -56,6 +58,7 @@ import org.tron.protos.Contract.TransferContract;
 import org.tron.protos.Contract.VoteWitnessContract;
 import org.tron.protos.Contract.WitnessCreateContract;
 import org.tron.protos.Contract.WitnessUpdateContract;
+import org.tron.protos.Contract.ContractCreationContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.TXOutput;
@@ -330,5 +333,29 @@ public class Wallet {
     Builder builder = NumberMessage.newBuilder()
         .setNum(dbManager.getTransactionStore().getTotalTransactions());
     return builder.build();
+  }
+
+  public Transaction createContarct(ContractCreationContract contractCreationContract) {
+    return new TransactionCapsule(contractCreationContract, Transaction.Contract.ContractType.ContractCreationContract)
+            .getInstance();
+  }
+
+  public Transaction callContract(Contract.ContractCallContract contractCallContract) {
+    return new TransactionCapsule(contractCallContract, Transaction.Contract.ContractType.ContractCallContract)
+            .getInstance();
+  }
+
+  public ContractCreationContract getContract(GrpcAPI.BytesMessage bytesMessage) {
+    ContractCapsule contractCapsule = dbManager.getContractStore().get(bytesMessage.getValue().toByteArray());
+    Transaction trx = contractCapsule.getInstance();
+    Any contract = trx.getRawData().getContract(0).getParameter();
+    if (contract.is(ContractCreationContract.class)) {
+      try {
+        return contract.unpack(ContractCreationContract.class);
+      } catch (InvalidProtocolBufferException e) {
+        return null;
+      }
+    }
+    return null;
   }
 }

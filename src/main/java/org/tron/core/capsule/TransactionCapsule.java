@@ -36,6 +36,7 @@ import org.tron.common.utils.Sha256Hash;
 import org.tron.core.Wallet;
 import org.tron.core.db.AccountStore;
 import org.tron.core.exception.ValidateSignatureException;
+import org.tron.protos.Contract;
 import org.tron.protos.Contract.AccountCreateContract;
 import org.tron.protos.Contract.ParticipateAssetIssueContract;
 import org.tron.protos.Contract.TransferAssetContract;
@@ -121,6 +122,10 @@ public class TransactionCapsule implements ProtoCapsule<Transaction> {
 
   public TransactionCapsule(ParticipateAssetIssueContract participateAssetIssueContract) {
     createTransaction(participateAssetIssueContract, ContractType.ParticipateAssetIssueContract);
+  }
+
+  public TransactionCapsule(Contract.ContractCreationContract contractCreationContract) {
+
   }
 
   public void setResult(TransactionResultCapsule transactionResultCapsule) {

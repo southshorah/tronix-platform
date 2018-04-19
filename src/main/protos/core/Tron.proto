@@ -30,6 +30,7 @@ message Account {
   repeated Vote votes = 5;
   map<string, int64> asset = 6;
   int64 latest_opration_time = 10;
+  bytes codeHash = 11;
 }
 
 // Witness
@@ -83,6 +84,9 @@ message Transaction {
       DeployContract = 7;
       WitnessUpdateContract = 8;
       ParticipateAssetIssueContract = 9;
+      ContractCreationContract = 10;
+      ContractCallContract = 11;
+      GetContract = 12;
     }
     ContractType type = 1;
     google.protobuf.Any parameter = 2;
@@ -213,3 +217,9 @@ message HelloMessage {
   Endpoint from = 1;
   int32 version = 2;
 }
+
+message StorageItem {
+  bytes contract_address = 1;
+  map<string, bytes> items = 2;
+}
+
