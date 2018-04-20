@@ -2,12 +2,14 @@ package org.tron.core.db;
 
 import com.google.protobuf.ByteString;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.tron.common.crypto.Hash;
 import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.FastByteComparisons;
 import org.tron.common.utils.Sha256Hash;
 import org.tron.common.vm.DataWord;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.CodeCapsule;
+import org.tron.core.capsule.ContractCapsule;
 import org.tron.core.capsule.StorageCapsule;
 import org.tron.core.config.SystemProperties;
 import org.tron.protos.Protocol;
@@ -19,35 +21,56 @@ import java.util.*;
 public class RepositoryImpl implements Repository, org.tron.core.facade.Repository {
 
     protected RepositoryImpl parent;
-    protected AccountStore accountCache;
-    protected CodeStore codeCache;
-    protected StorageStore storageCache;
+    protected RepositoryImpl child;
+    protected Manager dbManager;
 
     @Autowired
     protected SystemProperties config = SystemProperties.getDefault();
 
     protected RepositoryImpl() {}
 
-    public RepositoryImpl(AccountStore accountStore, CodeStore codeStore,
-                          StorageStore storageCache) {
-        init(accountStore, codeStore, storageCache);
+    public RepositoryImpl(Manager dbManager, RepositoryImpl parent) {
+        init(dbManager, parent);
+
     }
 
-    protected void init(AccountStore accountStore, CodeStore codeStore,
-                        StorageStore storageCache) {
-        this.accountCache = accountStore;
-        this.codeCache = codeStore;
-        this.storageCache = storageCache;
+    protected void init(Manager dbManager, RepositoryImpl parent) {
+        this.dbManager = dbManager;
+        this.parent = parent;
+    }
+
+    public Manager getDbManager() {
+        return dbManager;
+    }
+
+    public BlockStore getBlockStore() {
+        return dbManager.getBlockStore();
+    }
+
+    public ContractStore getContractStore() {
+        return dbManager.getContractStore();
+    }
+
+    public AccountStore getAccountStore() {
+        return dbManager.getAccountStore();
+    }
+
+    public CodeStore getCodeStore() {
+        return dbManager.getCodeStore();
+    }
+
+    public StorageStore getStorageStore() {
+        return dbManager.getStorageStore();
     }
 
     @Override
     public synchronized AccountCapsule createAccount(byte[] address, Protocol.AccountType type) {
-        if (!this.accountCache.has(address)) {
+        if (!this.getAccountStore().has(address)) {
             AccountCapsule account = new AccountCapsule(ByteString.copyFrom(address), type);
-            this.accountCache.put(address, account);
+            this.getAccountStore().put(address, account);
             return account;
         } else {
-            return this.accountCache.get(address);
+            return this.getAccountStore().get(address);
         }
     }
 
@@ -58,11 +81,11 @@ public class RepositoryImpl implements Repository, org.tron.core.facade.Reposito
 
     @Override
     public synchronized AccountCapsule getAccountCapsule(byte[] addr) {
-        return this.accountCache.get(addr);
+        return this.getAccountStore().get(addr);
     }
 
     synchronized AccountCapsule getOrCreateAccountCapsule(byte[] addr, Protocol.AccountType type) {
-        AccountCapsule ret = this.accountCache.get(addr);
+        AccountCapsule ret = this.getAccountStore().get(addr);
         if (ret == null) {
             ret = createAccount(addr, type);
         }
@@ -71,8 +94,8 @@ public class RepositoryImpl implements Repository, org.tron.core.facade.Reposito
 
     @Override
     public synchronized void delete(byte[] addr) {
-        this.accountCache.delete(addr);
-        storageCache.delete(addr);
+        this.getAccountStore().delete(addr);
+        this.getStorageStore().delete(addr);
     }
 
     @Override
@@ -86,20 +109,29 @@ public class RepositoryImpl implements Repository, org.tron.core.facade.Reposito
     }
 
     @Override
+    public void saveContract(byte[] contractAddress, ContractCapsule contractCapsule) {
+        this.dbManager.getContractStore().put(contractAddress, contractCapsule);
+    }
+
+    @Override
+    public ContractCapsule getContract(byte[] contractAddress) {
+        return null;
+    }
+
+    @Override
     public synchronized void saveCode(byte[] addr, byte[] code) {
         byte[] codeHash = Sha256Hash.hash(code);
-        codeCache.put(codeHash, new CodeCapsule(code));
+        this.getCodeStore().put(codeHash, new CodeCapsule(code));
         AccountCapsule accountCapsule = getOrCreateAccountCapsule(addr, Protocol.AccountType.Contract);
         accountCapsule.setCodeHash(codeHash);
-        this.accountCache.put(addr, accountCapsule);
+        this.getAccountStore().put(addr, accountCapsule);
     }
 
     @Override
     public synchronized byte[] getCode(byte[] addr) {
         byte[] codeHash = getCodeHash(addr);
-        //return FastByteComparisons.equal(codeHash, HashUtil.EMPTY_DATA_HASH) ?
-        //        ByteUtil.EMPTY_BYTE_ARRAY : codeCache.get(codeHash).getData();
-        return  codeCache.get(codeHash).getData();
+        return  ByteUtil.isNullOrZeroArray(codeHash) ?
+                ByteUtil.EMPTY_BYTE_ARRAY : getCodeStore().get(codeHash).getData();
     }
 
     @Override
@@ -112,14 +144,14 @@ public class RepositoryImpl implements Repository, org.tron.core.facade.Reposito
     public synchronized void addStorageRow(byte[] addr, DataWord key, DataWord value) {
         getOrCreateAccountCapsule(addr, Protocol.AccountType.Contract);
 
-        StorageCapsule storageCapsule = storageCache.get(addr);
+        StorageCapsule storageCapsule = this.getStorageStore().get(addr);
         storageCapsule.put(key, value);
     }
 
     @Override
     public synchronized DataWord getStorageValue(byte[] addr, DataWord key) {
         AccountCapsule accountCapsule = getAccountCapsule(addr);
-        return accountCapsule == null ? null : storageCache.get(addr).get(key);
+        return accountCapsule == null ? null : this.getStorageStore().get(addr).get(key);
     }
 
     @Override
@@ -135,7 +167,7 @@ public class RepositoryImpl implements Repository, org.tron.core.facade.Reposito
             return 0L;
         }
         accountCapsule.setBalance(accountCapsule.getBalance() + value);
-        this.accountCache.put(addr, accountCapsule);
+        this.getAccountStore().put(addr, accountCapsule);
         return accountCapsule.getBalance();
     }
 
@@ -359,7 +391,7 @@ public class RepositoryImpl implements Repository, org.tron.core.facade.Reposito
     @Override
     public void updateBatch(HashMap<ByteArrayWrapper, AccountCapsule> accountStates, HashMap<ByteArrayWrapper, ContractDetails> contractDetailes) {
         for (Map.Entry<ByteArrayWrapper, AccountCapsule> entry : accountStates.entrySet()) {
-            this.accountCache.put(entry.getKey().getData(), entry.getValue());
+            this.getAccountStore().put(entry.getKey().getData(), entry.getValue());
         }
         for (Map.Entry<ByteArrayWrapper, ContractDetails> entry : contractDetailes.entrySet()) {
             ContractDetails details = getContractDetails(entry.getKey().getData());

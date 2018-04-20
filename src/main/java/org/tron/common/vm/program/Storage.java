@@ -21,6 +21,7 @@ import org.tron.common.vm.DataWord;
 import org.tron.common.vm.program.invoke.ProgramInvoke;
 import org.tron.common.vm.program.listener.ProgramListener;
 import org.tron.common.vm.program.listener.ProgramListenerAware;
+import org.tron.core.capsule.ContractCapsule;
 import org.tron.core.db.Repository;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.db.ByteArrayWrapper;
@@ -69,6 +70,14 @@ public class Storage implements Repository, ProgramListenerAware {
     public void delete(byte[] addr) {
         if (canListenTrace(addr)) programListener.onStorageClear();
         repository.delete(addr);
+    }
+
+    public void saveContract(byte[] codeHash, ContractCapsule contractCapsule) {
+        this.repository.saveContract(codeHash, contractCapsule);
+    }
+
+    public ContractCapsule getContract(byte[] codeHash) {
+        return this.repository.getContract(codeHash);
     }
 
     @Override

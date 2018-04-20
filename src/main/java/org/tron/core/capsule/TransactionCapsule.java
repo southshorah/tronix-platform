@@ -246,6 +246,12 @@ public class TransactionCapsule implements ProtoCapsule<Transaction> {
           owner = contractParameter.unpack(ParticipateAssetIssueContract.class).getOwnerAddress();
           break;
         // todo add other contract
+        case ContractCreationContract:
+          owner = contractParameter.unpack(Contract.ContractCreationContract.class).getOwnerAddress();
+          break;
+        case ContractCallContract:
+          owner = contractParameter.unpack(Contract.ContractCallContract.class).getOwnerAddress();
+          break;
 
         default:
           return null;

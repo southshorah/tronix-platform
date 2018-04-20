@@ -1,20 +1,3 @@
-/*
- * Copyright (c) [2016] [ <ether.camp> ]
- * This file is part of the ethereumJ library.
- *
- * The ethereumJ library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * The ethereumJ library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with the ethereumJ library. If not, see <http://www.gnu.org/licenses/>.
- */
 package org.tron.common.vm.program;
 
 import org.tron.common.utils.ByteArraySet;
@@ -31,13 +14,9 @@ import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.collections4.CollectionUtils.size;
 import static org.tron.common.utils.ByteUtil.EMPTY_BYTE_ARRAY;
 
-/**
- * @author Roman Mandeleil
- * @since 07.06.2014
- */
 public class ProgramResult {
 
-    private long gasUsed;
+    private long dropUsed;
     private byte[] hReturn = EMPTY_BYTE_ARRAY;
     private RuntimeException exception;
     private boolean revert;
@@ -55,8 +34,8 @@ public class ProgramResult {
      */
     private List<CallCreate> callCreateList;
 
-    public void spendGas(long gas) {
-        gasUsed += gas;
+    public void spendGas(long drops) {
+        dropUsed += drops;
     }
 
     public void setRevert() {
@@ -67,8 +46,8 @@ public class ProgramResult {
         return revert;
     }
 
-    public void refundGas(long gas) {
-        gasUsed -= gas;
+    public void refundGas(long drops) {
+        dropUsed -= drops;
     }
 
     public void setHReturn(byte[] hReturn) {
@@ -84,8 +63,8 @@ public class ProgramResult {
         return exception;
     }
 
-    public long getGasUsed() {
-        return gasUsed;
+    public long getDropUsed() {
+        return dropUsed;
     }
 
     public void setException(RuntimeException exception) {
@@ -158,9 +137,9 @@ public class ProgramResult {
         return internalTransactions;
     }
 
-    public InternalTransaction addInternalTransaction(byte[] parentHash, int deep, DataWord gasPrice, DataWord gasLimit,
+    public InternalTransaction addInternalTransaction(byte[] parentHash, int deep,
                                                       byte[] senderAddress, byte[] receiveAddress, long value, byte[] data, String note) {
-        InternalTransaction transaction = new InternalTransaction(parentHash, deep, size(internalTransactions), gasPrice, gasLimit, senderAddress, receiveAddress, value, data, note);
+        InternalTransaction transaction = new InternalTransaction(parentHash, deep, size(internalTransactions), senderAddress, receiveAddress, value, data, note);
         getInternalTransactions().add(transaction);
         return transaction;
     }

@@ -195,6 +195,7 @@ public class NodeImpl extends PeerConnectionDelegate implements Node {
         onHandleBlockMessage(peer, (BlockMessage) msg);
         break;
       case TRX:
+        logger.info("------------ Jorge Handle Message: " + msg);
         onHandleTransactionMessage(peer, (TransactionMessage) msg);
         break;
       case SYNC_BLOCK_CHAIN:

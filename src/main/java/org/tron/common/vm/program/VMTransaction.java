@@ -56,16 +56,6 @@ public class VMTransaction {
      * In creation transaction the receive address is - 0 */
     private byte[] receiveAddress;
 
-    /* the amount of ether to pay as a transaction fee
-     * to the miner for each unit of gas */
-    private byte[] gasPrice;
-
-    /* the amount of "gas" to allow for the computation.
-     * Gas is the fuel of the computational engine;
-     * every computational step taken and every byte added
-     * to the state or transaction list consumes some gas. */
-    private byte[] gasLimit;
-
     /* An unlimited size byte array specifying
      * input [data] of the message call or
      * Initialization code for a new contract */
@@ -105,10 +95,8 @@ public class VMTransaction {
         //parsed = false;
     }
 
-    public VMTransaction(byte[] gasPrice, byte[] gasLimit, byte[] receiveAddress, long value, byte[] data,
+    public VMTransaction(byte[] receiveAddress, long value, byte[] data,
                          Integer chainId) {
-        this.gasPrice = gasPrice;
-        this.gasLimit = gasLimit;
         this.receiveAddress = receiveAddress;
         if (value == 0L) {
             this.value = 0L;
@@ -125,24 +113,19 @@ public class VMTransaction {
         parsed = true;
     }
 
-    public VMTransaction(byte[] gasPrice, byte[] gasLimit, byte[] receiveAddress, long value, byte[] data) {
-        this(gasPrice, gasLimit, receiveAddress, value, data, null);
+    public VMTransaction(byte[] receiveAddress, long value, byte[] data) {
+        this(receiveAddress, value, data, null);
     }
 
-    public VMTransaction(byte[] gasPrice, byte[] gasLimit, byte[] receiveAddress, long value, byte[] data,
+    public VMTransaction(byte[] receiveAddress, long value, byte[] data,
                          byte[] r, byte[] s, byte v, Integer chainId) {
-        this(gasPrice, gasLimit, receiveAddress, value, data, chainId);
+        this(receiveAddress, value, data, chainId);
         this.signature = ECDSASignature.fromComponents(r, s, v);
     }
 
-    /**
-     * Warning: this transaction would not be protected by replay-attack protection mechanism
-     * Use {@link VMTransaction#VMTransaction(byte[], byte[], byte[], long, byte[], byte[], byte[], byte)}
-     * constructor instead and specify the desired chainID
-     */
-    public VMTransaction(byte[] gasPrice, byte[] gasLimit, byte[] receiveAddress, long value, byte[] data,
+    public VMTransaction(byte[] receiveAddress, long value, byte[] data,
                          byte[] r, byte[] s, byte v) {
-        this(gasPrice, gasLimit, receiveAddress, value, data, r, s, v, null);
+        this(receiveAddress, value, data, r, s, v, null);
     }
 
 
@@ -222,10 +205,7 @@ public class VMTransaction {
     private void validate() {
         if (receiveAddress != null && receiveAddress.length != 0 && receiveAddress.length != ADDRESS_LENGTH)
             throw new RuntimeException("Receive address is not valid");
-        if (gasLimit.length > HASH_LENGTH)
-            throw new RuntimeException("Gas Limit is not valid");
-        if (gasPrice != null && gasPrice.length > HASH_LENGTH)
-            throw new RuntimeException("Gas Price is not valid");
+
         if (getSignature() != null) {
             if (BigIntegers.asUnsignedByteArray(signature.r).length > HASH_LENGTH)
                 throw new RuntimeException("Signature R is not valid");
@@ -274,25 +254,7 @@ public class VMTransaction {
         parsed = true;
     }
 
-    public byte[] getGasPrice() {
-        protoParse();
-        return gasPrice == null ? ZERO_BYTE_ARRAY : gasPrice;
-    }
 
-    protected void setGasPrice(byte[] gasPrice) {
-        this.gasPrice = gasPrice;
-        parsed = true;
-    }
-
-    public byte[] getGasLimit() {
-        protoParse();
-        return gasLimit == null ? ZERO_BYTE_ARRAY : gasLimit;
-    }
-
-    protected void setGasLimit(byte[] gasLimit) {
-        this.gasLimit = gasLimit;
-        parsed = true;
-    }
 
     public long nonZeroDataBytes() {
         if (data == null) return 0;
@@ -398,8 +360,6 @@ public class VMTransaction {
                     "... (" + data.length + " bytes)";
         }
         return "TransactionData [" + "hash=" + ByteUtil.toHexString(hash) +
-                ", gasPrice=" + ByteUtil.toHexString(gasPrice) +
-                ", gas=" + ByteUtil.toHexString(gasLimit) +
                 ", receiveAddress=" + ByteUtil.toHexString(receiveAddress) +
                 ", sendAddress=" + ByteUtil.toHexString(getSender())  +
                 ", value=" + value +
@@ -507,29 +467,23 @@ public class VMTransaction {
      * @deprecated Use {@link VMTransaction#createDefault(String, long)} instead
      */
     public static VMTransaction createDefault(String to, long amount){
-        return create(to, amount,  DEFAULT_GAS_PRICE, DEFAULT_BALANCE_GAS);
+        return create(to, amount);
     }
 
     public static VMTransaction createDefault(String to, long amount, Integer chainId){
-        return create(to, amount, DEFAULT_GAS_PRICE, DEFAULT_BALANCE_GAS, chainId);
+        return create(to, amount, chainId);
     }
 
-    /**
-     * @deprecated use {@link VMTransaction#create(String, long, BigInteger, BigInteger)} instead
-     */
-    public static VMTransaction create(String to, long amount, BigInteger gasPrice, BigInteger gasLimit){
-        return new VMTransaction(BigIntegers.asUnsignedByteArray(gasPrice),
-                BigIntegers.asUnsignedByteArray(gasLimit),
+
+    public static VMTransaction create(String to, long amount){
+        return new VMTransaction(
                 Hex.decode(to),
                 amount,
                 null);
     }
 
-    public static VMTransaction create(String to, long amount, BigInteger gasPrice,
-                                       BigInteger gasLimit, Integer chainId){
+    public static VMTransaction create(String to, long amount, Integer chainId){
         return new VMTransaction(
-                BigIntegers.asUnsignedByteArray(gasPrice),
-                BigIntegers.asUnsignedByteArray(gasLimit),
                 Hex.decode(to),
                 amount,
                 null,

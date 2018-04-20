@@ -84,7 +84,7 @@ public class Manager {
   private CodeStore codeStore;
   private ContractStore contractStore;
   private StorageStore storageStore;
-  private Repository repositoryRoot;
+  private RepositoryImpl repositoryRoot;
 
   private ProgramInvokeFactory programInvokeFactory;
 
@@ -234,7 +234,7 @@ public class Manager {
     this.setContractStore(ContractStore.create("contract"));
     this.setCodeStore(CodeStore.create("code"));
     this.setStorageStore(StorageStore.create("storage"));
-    this.setRepositoryRoot(new RepositoryRoot(accountStore, codeStore, storageStore));
+    this.setRepositoryRoot(new RepositoryRoot(this, null));
     this.setDynamicPropertiesStore(DynamicPropertiesStore.create("properties"));
     this.setWitnessController(WitnessController.createInstance(this));
     this.setBlockIndexStore(BlockIndexStore.create("block-index"));
@@ -689,10 +689,9 @@ public class Manager {
       trxCap.setResult(ret);
     }*/
 
-    Repository txTrack = null;
     byte[] coinbase = block != null ? block.getBlockHeader().getRawDataOrBuilder().getWitnessAddress().toByteArray() : null;
-    TransactionExecutor executor = new TransactionExecutor(trxCap, trxCap.getInstance(), coinbase, txTrack,
-            this, this.blockStore, this.contractStore, this.accountStore, programInvokeFactory, block);
+    TransactionExecutor executor = new TransactionExecutor(trxCap, trxCap.getInstance(), coinbase, this.repositoryRoot,
+             programInvokeFactory, block);
     //executor.withCommonConfig()
     executor.init();
     executor.execute();
@@ -992,7 +991,7 @@ public class Manager {
     return repositoryRoot;
   }
 
-  public void setRepositoryRoot(Repository repositoryRoot) {
+  public void setRepositoryRoot(RepositoryImpl repositoryRoot) {
     this.repositoryRoot = repositoryRoot;
   }
 }

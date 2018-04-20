@@ -52,7 +52,7 @@ public class ProgramInvokeMockImpl implements ProgramInvoke {
 
 
         // this.repository = new RepositoryRoot(new HashMapDB<byte[]>());
-        this.repository = new RepositoryRoot(null, null, null);
+        this.repository = new RepositoryRoot(null, null);
         this.repository.createAccount(ownerAddress, Protocol.AccountType.Normal);
 
         this.repository.createAccount(contractAddress, Protocol.AccountType.Contract);

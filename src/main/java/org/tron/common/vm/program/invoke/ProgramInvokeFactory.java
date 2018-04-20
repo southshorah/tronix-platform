@@ -18,6 +18,7 @@
 package org.tron.common.vm.program.invoke;
 
 import org.tron.common.vm.DataWord;
+import org.tron.common.vm.program.InternalTransaction;
 import org.tron.common.vm.program.Program;
 import org.tron.core.db.Repository;
 import org.tron.core.db.BlockStore;
@@ -30,8 +31,8 @@ import org.tron.protos.Protocol.Transaction;
  */
 public interface ProgramInvokeFactory {
 
-    ProgramInvoke createProgramInvoke(Transaction tx, Block block,
-                                      Repository repository, BlockStore blockStore);
+    ProgramInvoke createProgramInvoke(InternalTransaction.TrxType trxType, InternalTransaction.ExecuterType executerType,
+                                      Transaction tx, Block block, Repository repository, BlockStore blockStore);
 
     ProgramInvoke createProgramInvoke(Program program, DataWord toAddress, DataWord callerAddress,
                                       DataWord inValue, DataWord inGas,

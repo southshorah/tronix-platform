@@ -17,14 +17,7 @@
  */
 package org.tron.core.config;
 
-import org.tron.common.vm.DataWord;
-import org.tron.common.vm.GasCost;
-import org.tron.common.vm.OpCode;
-import org.tron.common.vm.program.Program;
-import org.tron.core.db.BlockStore;
-import org.tron.core.db.Repository;
-import org.tron.protos.Protocol.Block;
-import org.tron.protos.Protocol.BlockHeader;
+import org.tron.common.vm.DropCost;
 import org.tron.protos.Protocol.Transaction;
 
 import java.math.BigInteger;
@@ -52,5 +45,5 @@ public interface BlockchainConfig {
     /**
      * EVM operations costs
      */
-    GasCost getGasCost();
+    DropCost getDropCost();
 }

@@ -45,6 +45,8 @@ public class SecurityFactory {
       return true;
     }
 
+    if (contract == null) return false;
+
     ContractType contractType = getContractType(contract);
     ContractSecurity contractSecurity = contractSecurityMap.get(contractType);
     if (contractSecurity != null) {

@@ -38,6 +38,19 @@ public class InternalTransaction extends VMTransaction {
     private boolean rejected = false;
     private String note;
 
+    public enum TrxType {
+        TRX_PRECOMPILED_TYPE,
+        TRX_CONTRACT_CREATION_TYPE,
+        TRX_CONTRACT_CALL_TYPE,
+        TRX_UNKNOWN_TYPE,
+    };
+
+    public enum ExecuterType {
+        ET_PRE_TYPE,
+        ET_NORMAL_TYPE,
+        ET_UNKNOWN_TYPE,
+    }
+
     public InternalTransaction(byte[] rawData) {
         super(rawData);
     }
@@ -46,10 +59,10 @@ public class InternalTransaction extends VMTransaction {
         super(tx);
     }
 
-    public InternalTransaction(byte[] parentHash, int deep, int index, DataWord gasPrice, DataWord gasLimit,
+    public InternalTransaction(byte[] parentHash, int deep, int index,
                                byte[] sendAddress, byte[] receiveAddress, long value, byte[] data, String note) {
 
-        super(getData(gasPrice), getData(gasLimit), receiveAddress, value, nullToEmpty(data));
+        super(receiveAddress, value, nullToEmpty(data));
 
         this.parentHash = parentHash;
         this.deep = deep;
@@ -187,8 +200,6 @@ public class InternalTransaction extends VMTransaction {
         return "TransactionData [" +
                 "  parentHash=" + toHexString(getParentHash()) +
                 ", hash=" + toHexString(getHash()) +
-                ", gasPrice=" + toHexString(getGasPrice()) +
-                ", gas=" + toHexString(getGasLimit()) +
                 ", sendAddress=" + toHexString(getSender()) +
                 ", receiveAddress=" + toHexString(getReceiveAddress()) +
                 ", value=" + getValue() +

@@ -25,6 +25,7 @@ import java.util.List;
 import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ArrayUtils;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountList;
 import org.tron.api.GrpcAPI.AssetIssueList;
@@ -336,6 +337,7 @@ public class Wallet {
   }
 
   public Transaction createContarct(ContractCreationContract contractCreationContract) {
+    logger.info("---- Jorge createContarct -----");
     return new TransactionCapsule(contractCreationContract, Transaction.Contract.ContractType.ContractCreationContract)
             .getInstance();
   }
@@ -346,6 +348,13 @@ public class Wallet {
   }
 
   public ContractCreationContract getContract(GrpcAPI.BytesMessage bytesMessage) {
+    byte[] address = bytesMessage.toByteArray();
+    AccountCapsule accountCapsule = dbManager.getAccountStore().get(address);
+    if (accountCapsule == null || ArrayUtils.isEmpty(accountCapsule.getCodeHash())) {
+      logger.error("Get contract failed, the account is not exist or the account does not have code hash!");
+      return null;
+    }
+
     ContractCapsule contractCapsule = dbManager.getContractStore().get(bytesMessage.getValue().toByteArray());
     Transaction trx = contractCapsule.getInstance();
     Any contract = trx.getRawData().getContract(0).getParameter();

@@ -35,13 +35,8 @@ public class CommonConfig {
     private static CommonConfig defaultInstance;
 
     public static CommonConfig getDefault() {
-        if (defaultInstance == null && !SystemProperties.isUseOnlySpringConfig()) {
-            defaultInstance = new CommonConfig() {
-                //@Override
-                //public Source<byte[], ProgramPrecompile> precompileSource() {
-                 //   return null;
-                //}
-            };
+        if (defaultInstance == null) {
+            defaultInstance = new CommonConfig();
         }
         return defaultInstance;
     }

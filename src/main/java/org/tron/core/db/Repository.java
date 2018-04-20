@@ -19,6 +19,7 @@ package org.tron.core.db;
 
 import org.tron.common.vm.DataWord;
 import org.tron.core.capsule.AccountCapsule;
+import org.tron.core.capsule.ContractCapsule;
 import org.tron.core.db.ContractDetails;
 import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.Block;
@@ -72,6 +73,10 @@ public interface Repository extends org.tron.core.facade.Repository{
     ContractDetails getContractDetails(byte[] addr);
 
     boolean hasContractDetails(byte[] addr);
+
+    void saveContract(byte[] codeHash, ContractCapsule contractCapsule);
+
+    ContractCapsule getContract(byte[] codeHash);
 
     /**
      * Store code associated with an account

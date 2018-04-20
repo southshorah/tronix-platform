@@ -2,8 +2,8 @@ package org.tron.core.db;
 
 public class RepositoryRoot extends RepositoryImpl {
 
-    public RepositoryRoot(AccountStore accountStore, CodeStore codeStore, StorageStore storageStore) {
-        init(accountStore, codeStore, storageStore);
+    public RepositoryRoot(Manager dbManager, RepositoryImpl parent) {
+        init(dbManager, parent);
     }
 
     @Override

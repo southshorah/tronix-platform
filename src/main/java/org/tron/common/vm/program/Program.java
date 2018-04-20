@@ -162,7 +162,7 @@ public class Program {
         return invoke.getCallDeep();
     }
 
-    private InternalTransaction addInternalTx(DataWord gasLimit, byte[] senderAddress, byte[] receiveAddress,
+    private InternalTransaction addInternalTx(DataWord dropLimit, byte[] senderAddress, byte[] receiveAddress,
                                               long value, byte[] data, String note) {
 
         InternalTransaction result = null;
@@ -171,7 +171,7 @@ public class Program {
             //result = getResult().addInternalTransaction(transaction.getHash(), getCallDeep(),
             //        getGasPrice(), gasLimit, senderAddress, receiveAddress, value.toByteArray(), data, note);
             result = getResult().addInternalTransaction(transaction.getSignature().toByteArray(), getCallDeep(),
-                    getGasPrice(), gasLimit, senderAddress, receiveAddress, value, data, note);
+                    senderAddress, receiveAddress, value, data, note);
         }
 
         return result;
@@ -421,7 +421,7 @@ public class Program {
         //  actual gas subtract
         //DataWord gasLimit = blockchainConfig.getCreateGas(getGas());
         //spendGas(gasLimit.longValue(), "internal call");
-        DataWord gasLimit = new DataWord(tronConfig.getGasCost().getCREATE());
+        DataWord gasLimit = new DataWord(tronConfig.getDropCost().getCREATE());
 
         // [2] CREATE THE CONTRACT ADDRESS
         // byte[] newAddress = HashUtil.calcNewAddr(getOwnerAddress().getLast20Bytes() nonce);
@@ -460,7 +460,7 @@ public class Program {
 
 
         // [5] COOK THE INVOKE AND EXECUTE
-        InternalTransaction internalTx = addInternalTx(getGasLimit(), senderAddress, null, endowment, programCode, "create");
+        InternalTransaction internalTx = addInternalTx(getDropLimit(), senderAddress, null, endowment, programCode, "create");
         ProgramInvoke programInvoke = programInvokeFactory.createProgramInvoke(
                 this, new DataWord(newAddress), getOwnerAddress(), value, gasLimit,
                 newBalance, null, track, this.invoke.getBlockStore(), false, byTestingSuite());
@@ -482,8 +482,8 @@ public class Program {
         byte[] code = result.getHReturn();
 
         //long storageCost = getLength(code) * getBlockchainConfig().getGasCost().getCREATE_DATA();
-        long storageCost = getLength(code) * GasCost.getInstance().getCREATE_DATA();
-        long afterSpend = programInvoke.getGas().longValue() - storageCost - result.getGasUsed();
+        long storageCost = getLength(code) * DropCost.getInstance().getCREATE_DATA();
+        long afterSpend = programInvoke.getDropslimit().longValue() - storageCost - result.getDropUsed();
         if (afterSpend < 0) {
             if (!tronConfig.getConstants().createEmptyContractOnOOG()) {
                 result.setException(Program.Exception.notEnoughSpendingGas("No gas to return just created contract",
@@ -524,7 +524,7 @@ public class Program {
         }
 
         // 5. REFUND THE REMAIN GAS
-        long refundGas = gasLimit.longValue() - result.getGasUsed();
+        long refundGas = gasLimit.longValue() - result.getDropUsed();
         if (refundGas > 0) {
             refundGas(refundGas, "remain gas from the internal call");
             if (logger.isInfoEnabled()) {
@@ -592,7 +592,7 @@ public class Program {
         }
 
         // CREATE CALL INTERNAL TRANSACTION
-        InternalTransaction internalTx = addInternalTx( getGasLimit(), senderAddress, contextAddress, endowment, data, "call");
+        InternalTransaction internalTx = addInternalTx( getDropLimit(), senderAddress, contextAddress, endowment, data, "call");
 
         ProgramResult result = null;
         if (isNotEmpty(programCode)) {
@@ -655,7 +655,7 @@ public class Program {
 
         // 5. REFUND THE REMAIN GAS
         if (result != null) {
-            BigInteger refundGas = msg.getGas().value().subtract(toBI(result.getGasUsed()));
+            BigInteger refundGas = msg.getGas().value().subtract(toBI(result.getDropUsed()));
             if (isPositive(refundGas)) {
                 refundGas(refundGas.longValue(), "remaining gas from the internal call");
                 if (logger.isInfoEnabled())
@@ -669,18 +669,14 @@ public class Program {
     }
 
     public void spendGas(long gasValue, String cause) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("[{}] Spent for cause: [{}], gas: [{}]", invoke.hashCode(), cause, gasValue);
-        }
-
-        if (getGasLong() < gasValue) {
+        if (getDropLong() < gasValue) {
             throw Program.Exception.notEnoughSpendingGas(cause, gasValue, this);
         }
         getResult().spendGas(gasValue);
     }
 
     public void spendAllGas() {
-        spendGas(getGas().longValue(), "Spending all remaining");
+        spendGas(getDrop().longValue(), "Spending all remaining");
     }
 
     public void refundGas(long gasValue, String cause) {
@@ -750,16 +746,16 @@ public class Program {
         return invoke.getCallerAddress().clone();
     }
 
-    public DataWord getGasPrice() {
-        return invoke.getMinGasPrice().clone();
+    public DataWord getDropPrice() {
+        return new DataWord(1);
     }
 
-    public long getGasLong() {
-        return invoke.getGasLong() - getResult().getGasUsed();
+    public long getDropLong() {
+        return invoke.getDropslimitLong() - getResult().getDropUsed();
     }
 
-    public DataWord getGas() {
-        return new DataWord(invoke.getGasLong() - getResult().getGasUsed());
+    public DataWord getDrop() {
+        return new DataWord(invoke.getDropslimitLong() - getResult().getDropUsed());
     }
 
     public DataWord getCallValue() {
@@ -818,11 +814,11 @@ public class Program {
     }
 
     public DataWord getDifficulty() {
-        return invoke.getDifficulty().clone();
+        return null; //invoke.getDifficulty().clone();
     }
 
-    public DataWord getGasLimit() {
-        return invoke.getGaslimit().clone();
+    public DataWord getDropLimit() {
+        return invoke.getDropslimit().clone();
     }
 
     public boolean isStaticCall() {
@@ -910,9 +906,9 @@ public class Program {
             logger.trace(" -- MEMORY --  {}", memoryData);
             logger.trace(" -- STORAGE -- {}\n", storageData);
             logger.trace("\n  Spent Gas: [{}]/[{}]\n  Left Gas:  [{}]\n",
-                    getResult().getGasUsed(),
-                    invoke.getGas().longValue(),
-                    getGas().longValue());
+                    getResult().getDropUsed(),
+                    invoke.getDropslimit().longValue(),
+                    getDrop().longValue());
 
             StringBuilder globalOutput = new StringBuilder("\n");
             if (stackData.length() > 0) stackData.append("\n");
@@ -934,7 +930,7 @@ public class Program {
             byte[] txData = invoke.getDataCopy(DataWord.ZERO, getDataSize());
             if (!Arrays.equals(txData, ops))
                 globalOutput.append("\n  msg.data: ").append(Hex.toHexString(txData));
-            globalOutput.append("\n\n  Spent Gas: ").append(getResult().getGasUsed());
+            globalOutput.append("\n\n  Spent Gas: ").append(getResult().getDropUsed());
 
             if (listener != null)
                 listener.output(globalOutput.toString());
@@ -943,7 +939,7 @@ public class Program {
 
     public void saveOpTrace() {
         if (this.pc < ops.length) {
-            trace.addOp(ops[pc], pc, getCallDeep(), getGas(), traceListener.resetActions());
+            trace.addOp(ops[pc], pc, getCallDeep(), getDrop(), traceListener.resetActions());
         }
     }
 
@@ -1281,7 +1277,7 @@ public class Program {
 
         public static OutOfGasException notEnoughSpendingGas(String cause, long gasValue, Program program) {
             return new OutOfGasException("Not enough gas for '%s' cause spending: invokeGas[%d], gas[%d], usedGas[%d];",
-                    cause, program.invoke.getGas().longValue(), gasValue, program.getResult().getGasUsed());
+                    cause, program.invoke.getDropslimit().longValue(), gasValue, program.getResult().getDropUsed());
         }
 
         public static OutOfGasException gasOverflow(BigInteger actualGas, BigInteger gasLimit) {

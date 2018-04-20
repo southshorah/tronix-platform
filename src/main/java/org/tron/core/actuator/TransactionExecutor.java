@@ -22,7 +22,10 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.tron.common.crypto.ECKey;
+import org.tron.common.crypto.Hash;
 import org.tron.common.utils.ByteArraySet;
+import org.tron.common.utils.Utils;
 import org.tron.common.vm.LogInfo;
 import org.tron.common.vm.PrecompiledContracts;
 import org.tron.common.vm.VM;
@@ -45,14 +48,20 @@ import org.tron.protos.Contract.ContractCreationContract;
 import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
-
+import org.tron.security.SecurityFactory;
 import java.util.List;
-
 import static org.apache.commons.lang3.ArrayUtils.isEmpty;
-import static org.tron.core.actuator.TransactionExecutor.TrxType.TRX_CONTRACT_CALL_TYPE;
-import static org.tron.core.actuator.TransactionExecutor.TrxType.TRX_UNKNOWN_TYPE;
+import static org.tron.common.vm.program.InternalTransaction.TrxType;
+import static org.tron.common.vm.program.InternalTransaction.TrxType.TRX_UNKNOWN_TYPE;
+import static org.tron.common.vm.program.InternalTransaction.TrxType.TRX_CONTRACT_CALL_TYPE;
+import static org.tron.common.vm.program.InternalTransaction.TrxType.TRX_CONTRACT_CREATION_TYPE;
+import static org.tron.common.vm.program.InternalTransaction.TrxType.TRX_PRECOMPILED_TYPE;
+import static org.tron.common.vm.program.InternalTransaction.ExecuterType;
+import static org.tron.common.vm.program.InternalTransaction.ExecuterType.*;
 
-
+/*
+ * # # # #
+ */
 public class TransactionExecutor {
 
     private static final Logger logger = LoggerFactory.getLogger("execute");
@@ -63,12 +72,8 @@ public class TransactionExecutor {
 
     private TransactionCapsule trxCap;
     private Transaction tx;
-    private Repository track;
-    private Repository cacheTrack;
-    private Manager manager;
-    private BlockStore blockStore;
-    private ContractStore contractStore;
-    private AccountStore accountStore;
+    private RepositoryImpl track;
+    //private Repository cacheTrack;
     private boolean readyToExecute = false;
     private String execError;
 
@@ -89,48 +94,37 @@ public class TransactionExecutor {
     private ByteArraySet touchedAccounts = new ByteArraySet();
     boolean localCall = false;
 
-    enum TrxType{
-        TRX_PRECOMPILED_TYPE,
-        TRX_CONTRACT_CREATION_TYPE,
-        TRX_CONTRACT_CALL_TYPE,
-        TRX_UNKNOWN_TYPE,
 
-    };
     private TrxType trxType = TRX_UNKNOWN_TYPE;
+    private ExecuterType executerType = ET_UNKNOWN_TYPE;
 
-    private long gasEnd;
+    public TransactionExecutor(TransactionCapsule trxCap, Transaction tx, byte[] coinbase, RepositoryImpl track,
+                               ProgramInvokeFactory programInvokeFactory, Block currentBlock) {
 
-    public TransactionExecutor(TransactionCapsule trxCap, Transaction tx, byte[] coinbase, Repository track, Manager manager, BlockStore blockStore,
-                               ContractStore contractStore, AccountStore accountStore, ProgramInvokeFactory programInvokeFactory, Block currentBlock) {
-
-        this(trxCap, tx, coinbase, track, blockStore, manager, contractStore, accountStore, programInvokeFactory, currentBlock, 0);
+        this(trxCap, tx, coinbase, track, programInvokeFactory, currentBlock, 0);
     }
 
-    public TransactionExecutor(TransactionCapsule trxCap, Transaction tx, byte[] coinbase, Repository track, BlockStore blockStore, Manager manager,
-                               ContractStore contractStore, AccountStore accountStore, ProgramInvokeFactory programInvokeFactory, Block currentBlock, long gasUsedInTheBlock) {
+    public TransactionExecutor(TransactionCapsule trxCap, Transaction tx, byte[] coinbase, RepositoryImpl track,
+                               ProgramInvokeFactory programInvokeFactory, Block currentBlock, long gasUsedInTheBlock) {
         this.trxCap = trxCap;
         this.tx = tx;
-        this.coinbase = coinbase;
+        this.coinbase = coinbase;  // may be null
         this.track = track;
         //this.cacheTrack = track.startTracking();
-        this.cacheTrack = track;
-        this.manager = manager;
-        this.blockStore = blockStore;
-        this.contractStore = contractStore;
-        this.accountStore = accountStore;
         this.programInvokeFactory = programInvokeFactory;
-        this.currentBlock = currentBlock;
+        this.currentBlock = currentBlock;  // may be null
+        this.executerType = currentBlock == null ? ET_PRE_TYPE : ET_NORMAL_TYPE;
         // this.listener = listener;
         Transaction.Contract.ContractType contractType = tx.getRawData().getContract(0).getType();
         switch (contractType.getNumber()) {
             case Transaction.Contract.ContractType.ContractCallContract_VALUE:
-                trxType = TrxType.TRX_CONTRACT_CALL_TYPE;
+                trxType = TRX_CONTRACT_CALL_TYPE;
                 break;
             case Transaction.Contract.ContractType.ContractCreationContract_VALUE:
-                trxType = TrxType.TRX_CONTRACT_CREATION_TYPE;
+                trxType = TRX_CONTRACT_CREATION_TYPE;
                 break;
             default:
-                trxType = TrxType.TRX_PRECOMPILED_TYPE;
+                trxType = TRX_PRECOMPILED_TYPE;
 
         }
 
@@ -162,9 +156,17 @@ public class TransactionExecutor {
         readyToExecute = true;
     }
 
+    private boolean doNext() {
+        if (executerType == ET_NORMAL_TYPE) {
+            return true;
+        }
+
+        return false;
+    }
+
     public void precompiled() throws ContractValidateException, ContractExeException{
         //try {
-            final List<Actuator> actuatorList = ActuatorFactory.createActuator(this.trxCap, this.manager);
+            final List<Actuator> actuatorList = ActuatorFactory.createActuator(this.trxCap, this.track.getDbManager());
             TransactionResultCapsule ret = new TransactionResultCapsule();
             for (Actuator act : actuatorList) {
                 act.validate();
@@ -180,6 +182,9 @@ public class TransactionExecutor {
 
     public void execute() throws ContractValidateException, ContractExeException{
         if (!readyToExecute) return;
+
+        if (!doNext()) return;
+
         switch (trxType) {
             case TRX_PRECOMPILED_TYPE:
                 precompiled();
@@ -209,27 +214,19 @@ public class TransactionExecutor {
             // TODO: Security Block Chain (2018.04)
         }
         if (!readyToExecute) return;
-        gasEnd = 1024;
-        Any callContract = tx.getRawData().getContract(0).getParameter();
-        Contract.ContractCallContract contractCallContract = getContractCallContract(callContract);
-        if (contractCallContract == null) return;
+        Contract.ContractCallContract contract = ContractCapsule.getCallContractFromTransaction(tx);
+        if (contract == null) return;
 
-        ByteString contractAddress = contractCallContract.getContractAddress();
-        ContractCapsule contractCapsule = this.contractStore.get(contractAddress.toByteArray());
-        Any creationContact = contractCapsule.getInstance().getRawData().getContract(0).getParameter();
-        ContractCreationContract contractCreationContract = getContractCreationContract(creationContact);
-        byte[] code = contractCreationContract.getBytecode().toByteArray();
-
-
+        byte[] contractAddress = contract.getContractAddress().toByteArray();
+        byte[] code = this.track.getCode(contractAddress);
         if (isEmpty(code)) {
-            //m_endGas = m_endGas.subtract(BigInteger.valueOf(basicTxCost));
-            //result.spendGas(basicTxCost);
+
         } else {
-            ProgramInvoke programInvoke =
-                    programInvokeFactory.createProgramInvoke(tx, currentBlock, cacheTrack, blockStore);
+            ProgramInvoke programInvoke = programInvokeFactory.createProgramInvoke(TRX_CONTRACT_CALL_TYPE, executerType, tx,
+                    currentBlock, track, track.getBlockStore());
             this.vm = new VM(config);
             // this.program = new Program(track.getCodeHash(targetAddress), code, programInvoke, tx, config).withCommonConfig(commonConfig);
-            this.program = new Program(contractCapsule.getCodeHash().getBytes(), code, programInvoke, new InternalTransaction(tx), config).withCommonConfig(commonConfig);
+            this.program = new Program(track.getCodeHash(contractAddress), code, programInvoke, new InternalTransaction(tx), config).withCommonConfig(commonConfig);
         }
 
 
@@ -239,87 +236,73 @@ public class TransactionExecutor {
         //touchedAccounts.add(targetAddress);
     }
 
-    private ContractCreationContract getContractCreationContract(Any contract) {
-        try {
-            ContractCreationContract contractCreationContract = contract.unpack(ContractCreationContract.class);
-            return contractCreationContract;
-        } catch (InvalidProtocolBufferException e) {
-            return null;
-        }
-    }
-
+    /*
+     **/
     private void create() {
-        {
-            // TODO: Security Block Chain (2018.04)
-        }
-        // Create the Contract Account
-        Any contract = tx.getRawData().getContract(0).getParameter();
-        ContractCreationContract contractCreationContract = getContractCreationContract(contract);
-        ByteString newContractAddress = contractCreationContract.getContractAddress();
-        if (!this.accountStore.has(newContractAddress.toByteArray())) {
-            AccountCapsule account = new AccountCapsule(newContractAddress,
-                    Protocol.AccountType.Contract);
-            this.accountStore.put(newContractAddress.toByteArray(), account);
-        } else {
-            logger.debug("new contract address has exist!", newContractAddress.toString());
+        ContractCreationContract contract = ContractCapsule.getCreationContractFromTransaction(tx);
+        // Security Block Chain (2018.04)
+        if (!SecurityFactory.getInstance().validateContract(Any.pack(contract))) {
             return;
         }
 
-        // Store the Transaction, which Represent the Contract
-        this.contractStore.put(newContractAddress.toByteArray(), new ContractCapsule(tx));
+        // Create a Contract Account by ownerAddress or If the address exist, random generate one
+        byte[] code = contract.getBytecode().toByteArray();
+        ContractCreationContract.ABI abi = contract.getAbi();
+        byte[] ownerAddress = contract.getOwnerAddress().toByteArray();
+        byte[] newContractAddress;
+        if (contract.getContractAddress() == null) {
+            byte[] privKey = Hash.sha256(ownerAddress);
+            ECKey ecKey = ECKey.fromPrivate(privKey);
+            newContractAddress = ecKey.getAddress();
+            while (true) {
+                AccountCapsule existingAddr = this.track.getAccountCapsule(newContractAddress);
+                // if (existingAddr == null || existingAddr.getCodeHash().length == 0) {
+                if (existingAddr == null) {
+                    break;
+                }
 
+                ecKey = new ECKey(Utils.getRandom());
+                newContractAddress = ecKey.getAddress();
+            }
+        } else {
+            newContractAddress = contract.getContractAddress().toByteArray();
+        }
+
+        // crate vm to constructor smart contract
+        try {
+            byte[] ops = contract.getBytecode().toByteArray();
+            InternalTransaction internalTransaction = new InternalTransaction(tx);
+            ProgramInvoke programInvoke = programInvokeFactory.createProgramInvoke(TRX_CONTRACT_CREATION_TYPE, executerType, tx,
+                    currentBlock, track, track.getBlockStore());
+            this.vm = new VM(config);
+            this.program = new Program(ops, programInvoke, internalTransaction, config).withCommonConfig(commonConfig);
+        } catch(Exception e) {
+            logger.error(e.getMessage());
+            execError = e.getMessage();
+            return;
+        }
+
+        // Store the account, code and contract
+        this.track.createAccount(newContractAddress, Protocol.AccountType.Contract);
+        this.track.saveContract(newContractAddress, new ContractCapsule(tx));
+        this.track.saveCode(newContractAddress, code);
     }
 
     public void go() {
-        {
-            // TODO: Security Block Chain (2018.04)
-        }
+        {/* TODO: Security Block Chain (2018.04) */}
         if (!readyToExecute) return;
-        if (trxType != TRX_CONTRACT_CALL_TYPE) return;
+        if (trxType != TRX_CONTRACT_CALL_TYPE && trxType != TRX_CONTRACT_CREATION_TYPE) return;
+        if (!doNext()) return;
 
-        /*
         try {
             if (vm != null) {
-                // Charge basic cost of the transaction
-                program.spendGas(tx.transactionCost(config.getBlockchainConfig(), currentBlock), "TRANSACTION COST");
+                { /* charge gas for trx ? */}
 
-                if (config.playVM())
+                if (config.vmOn()) {
                     vm.play(program);
+                }
 
                 result = program.getResult();
-                m_endGas = toBI(tx.getGasLimit()).subtract(toBI(program.getResult().getGasUsed()));
-
-                if (tx.isContractCreation() && !result.isRevert()) {
-                    int returnDataGasValue = getLength(program.getResult().getHReturn()) *
-                            blockchainConfig.getGasCost().getCREATE_DATA();
-                    if (m_endGas.compareTo(BigInteger.valueOf(returnDataGasValue)) < 0) {
-                        // Not enough gas to return contract code
-                        if (!blockchainConfig.getConstants().createEmptyContractOnOOG()) {
-                            program.setRuntimeFailure(Program.Exception.notEnoughSpendingGas("No gas to return just created contract",
-                                    returnDataGasValue, program));
-                            result = program.getResult();
-                        }
-                        result.setHReturn(EMPTY_BYTE_ARRAY);
-                    } else if (getLength(result.getHReturn()) > blockchainConfig.getConstants().getMAX_CONTRACT_SZIE()) {
-                        // Contract size too large
-                        program.setRuntimeFailure(Program.Exception.notEnoughSpendingGas("Contract size too large: " + getLength(result.getHReturn()),
-                                returnDataGasValue, program));
-                        result = program.getResult();
-                        result.setHReturn(EMPTY_BYTE_ARRAY);
-                    } else {
-                        // Contract successfully created
-                        m_endGas = m_endGas.subtract(BigInteger.valueOf(returnDataGasValue));
-                        cacheTrack.saveCode(tx.getContractAddress(), result.getHReturn());
-                    }
-                }
-
-                String err = config.getBlockchainConfig().getConfigForBlock(currentBlock.getNumber()).
-                        validateTransactionChanges(blockStore, currentBlock, tx, null);
-                if (err != null) {
-                    program.setRuntimeFailure(new RuntimeException("Transaction changes validation failed: " + err));
-                }
-
-
                 if (result.getException() != null || result.isRevert()) {
                     result.getDeleteAccounts().clear();
                     result.getLogInfoList().clear();
@@ -333,26 +316,23 @@ public class TransactionExecutor {
                     }
                 } else {
                     touchedAccounts.addAll(result.getTouchedAccounts());
-                    cacheTrack.commit();
+                    track.commit();
                 }
 
             } else {
-                cacheTrack.commit();
+                track.commit();
             }
-
-        } catch (Throwable e) {
-
-            // TODO: catch whatever they will throw on you !!!
-//            https://github.com/ethereum/cpp-ethereum/blob/develop/libethereum/Executive.cpp#L241
+        } catch(Exception e) {
+            logger.error(e.getMessage());
+            // rollback;
             rollback();
             execError(e.getMessage());
         }
-        */
     }
 
     private void rollback() {
 
-        cacheTrack.rollback();
+        //cacheTrack.rollback();
 
         /*
         // remove touched account

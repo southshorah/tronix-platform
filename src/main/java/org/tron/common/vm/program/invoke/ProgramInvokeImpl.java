@@ -39,6 +39,7 @@ public class ProgramInvokeImpl implements ProgramInvoke {
     private final DataWord origin, caller,
             balance, callValue;
     // private final long gasLong;
+    private DataWord drops;
 
     byte[] msgData;
 
@@ -108,6 +109,7 @@ public class ProgramInvokeImpl implements ProgramInvoke {
         this.balance = new DataWord(balance);
         this.callValue = new DataWord(callValue);
         this.msgData = msgData;
+        this.drops = new DataWord(balance);
 
         // last Block env
         this.prevHash = new DataWord(lastHash);
@@ -159,21 +161,6 @@ public class ProgramInvokeImpl implements ProgramInvoke {
     /*           CALLER op         */
     public DataWord getCallerAddress() {
         return caller;
-    }
-
-    /*           GASPRICE op       */
-    public DataWord getMinGasPrice() {
-        return null; //gasPrice;
-    }
-
-    /*           GAS op       */
-    public DataWord getGas() {
-        return null; //gas;
-    }
-
-    @Override
-    public long getGasLong() {
-        return 0;
     }
 
     /*          CALLVALUE op    */
@@ -259,8 +246,12 @@ public class ProgramInvokeImpl implements ProgramInvoke {
     }
 
     /*     GASLIMIT op    */
-    public DataWord getGaslimit() {
-        return null; //gaslimit;
+    public DataWord getDropslimit() {
+        return drops; //gaslimit;
+    }
+
+    public long getDropslimitLong() {
+        return drops.longValue();
     }
 
     /*  Storage */

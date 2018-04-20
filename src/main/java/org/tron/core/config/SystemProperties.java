@@ -197,6 +197,10 @@ public class SystemProperties {
         return blockchainConfig;
     }
 
+    public boolean vmOn() {
+        return true;
+    }
+
     public boolean vmTrace() {
         return false;
     }

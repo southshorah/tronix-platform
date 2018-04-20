@@ -1,29 +1,7 @@
-/*
- * Copyright (c) [2016] [ <ether.camp> ]
- * This file is part of the ethereumJ library.
- *
- * The ethereumJ library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * The ethereumJ library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with the ethereumJ library. If not, see <http://www.gnu.org/licenses/>.
- */
 package org.tron.common.vm;
 
-/**
- * The fundamental network cost unit. Paid for exclusively by Ether, which is converted
- * freely to and from Gas as required. Gas does not exist outside of the internal Ethereum
- * computation engine; its price is set by the Transaction and miners are free to
- * ignore Transactions whose Gas price is too low.
- */
-public class GasCost {
+
+public class DropCost {
 
     /* backwards compatibility, remove eventually */
     private final int STEP = 1;
@@ -295,10 +273,10 @@ public class GasCost {
         return EXT_CODE_COPY;
     }
 
-    private static GasCost instance = null;
-    public static GasCost getInstance() {
+    private static DropCost instance = null;
+    public static DropCost getInstance() {
         if (instance == null) {
-            instance = new GasCost();
+            instance = new DropCost();
         }
 
         return instance;

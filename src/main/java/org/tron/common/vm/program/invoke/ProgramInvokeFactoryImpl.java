@@ -21,14 +21,24 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
 import org.springframework.stereotype.Component;
+import org.tron.common.utils.ByteUtil;
 import org.tron.common.vm.DataWord;
+import org.tron.common.vm.program.InternalTransaction;
 import org.tron.common.vm.program.Program;
+import org.tron.core.actuator.TransactionExecutor;
+import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.db.Repository;
 import org.tron.core.capsule.ContractCapsule;
 import org.tron.core.db.BlockStore;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.common.vm.program.InternalTransaction.TrxType;
+import org.tron.common.vm.program.InternalTransaction.ExecuterType;
+
+import static org.tron.common.vm.program.InternalTransaction.TrxType.TRX_CONTRACT_CALL_TYPE;
+import static org.tron.common.vm.program.InternalTransaction.TrxType.TRX_CONTRACT_CREATION_TYPE;
+import static org.tron.common.vm.program.InternalTransaction.ExecuterType.*;
 
 /**
  * @author Roman Mandeleil
@@ -41,104 +51,105 @@ public class ProgramInvokeFactoryImpl implements ProgramInvokeFactory {
 
     // Invocation by the wire tx
     @Override
-    public ProgramInvoke createProgramInvoke(Transaction tx, Block block, Repository repository,
+    public ProgramInvoke createProgramInvoke(TrxType trxType, ExecuterType executerType, Transaction tx, Block block, Repository repository,
                                              BlockStore blockStore) {
+        byte[] contractAddress;
+        byte[] ownerAddress;
+        long balance;
+        byte[] data;
+        byte[] lastHash = null;
+        byte[] coinbase = null;
+        long timestamp = 0L;
+        long number = -1L;
 
-        Contract.ContractCallContract contractCallContract = ContractCapsule.getCallContractFromTransaction(tx);
-        /***         ADDRESS op       ***/
-        // YP: Get address of currently executing account.
-        // byte[] address = tx.isContractCreation() ? tx.getContractAddress() : tx.getReceiveAddress();
-        byte[] address = contractCallContract.getContractAddress().toByteArray();
+        if (trxType == TRX_CONTRACT_CREATION_TYPE) {
+            Contract.ContractCreationContract contract = ContractCapsule.getCreationContractFromTransaction(tx);
+            contractAddress = contract.getContractAddress().toByteArray();
+            ownerAddress = contract.getOwnerAddress().toByteArray();
+            balance = repository.getBalance(ownerAddress);
+            data = ByteUtil.EMPTY_BYTE_ARRAY;
 
-        /***         ORIGIN op       ***/
-        // YP: This is the sender of original transaction; it is never a contract.
-        // byte[] origin = tx.getSender();
-        byte[] origin = contractCallContract.getOwnerAddress().toByteArray();
+            switch (executerType) {
+                case ET_NORMAL_TYPE:
+                    lastHash = block.getBlockHeader().getRawDataOrBuilder().getParentHash().toByteArray();
+                    coinbase = block.getBlockHeader().getRawDataOrBuilder().getWitnessAddress().toByteArray();
+                    timestamp = block.getBlockHeader().getRawDataOrBuilder().getTimestamp();
+                    number = block.getBlockHeader().getRawDataOrBuilder().getNumber();
+                    break;
+                case ET_PRE_TYPE:
+                    break;
+                default:
+                    return null;
+            }
 
-        /***         CALLER op       ***/
-        // YP: This is the address of the account that is directly responsible for this execution.
-        //byte[] caller = tx.getSender();
-        byte[] caller = contractCallContract.getOwnerAddress().toByteArray();
 
-        /***         BALANCE op       ***/
-        // byte[] balance = repository.getBalance(address).toByteArray();
-        long balance = repository.getBalance(address);
+            return new ProgramInvokeImpl(contractAddress, ownerAddress, ownerAddress, balance, null, data,
+                    lastHash, coinbase, timestamp, number, repository, blockStore);
 
-        /***         GASPRICE op       ***/
-        //byte[] gasPrice = tx.getGasPrice();
+        } else if (trxType == TRX_CONTRACT_CALL_TYPE) {
+            Contract.ContractCallContract contract = ContractCapsule.getCallContractFromTransaction(tx);
+            /***         ADDRESS op       ***/
+            // YP: Get address of currently executing account.
+            // byte[] address = tx.isContractCreation() ? tx.getContractAddress() : tx.getReceiveAddress();
+            byte[] address = contract.getContractAddress().toByteArray();
 
-        /*** GAS op ***/
-        //byte[] gas = tx.getGasLimit();
+            /***         ORIGIN op       ***/
+            // YP: This is the sender of original transaction; it is never a contract.
+            // byte[] origin = tx.getSender();
+            byte[] origin = contract.getOwnerAddress().toByteArray();
 
-        /***        CALLVALUE op      ***/
-        // byte[] callValue = nullToEmpty(tx.getValue());
-        byte[] callValue = contractCallContract.getCallValue().toByteArray();
+            /***         CALLER op       ***/
+            // YP: This is the address of the account that is directly responsible for this execution.
+            //byte[] caller = tx.getSender();
+            byte[] caller = contract.getOwnerAddress().toByteArray();
 
-        /***     CALLDATALOAD  op   ***/
-        /***     CALLDATACOPY  op   ***/
-        /***     CALLDATASIZE  op   ***/
-        // byte[] data = tx.isContractCreation() ? ByteUtil.EMPTY_BYTE_ARRAY : nullToEmpty(tx.getData());
-        byte[] data = contractCallContract.getData().toByteArray();
+            /***         BALANCE op       ***/
+            // byte[] balance = repository.getBalance(address).toByteArray();
+            balance = repository.getBalance(address);
 
-        /***    PREVHASH  op  ***/
-        // byte[] lastHash = block.getParentHash();
-        byte[] lastHash = block.getBlockHeader().getRawDataOrBuilder().getParentHash().toByteArray();
+            /***         GASPRICE op       ***/
+            //byte[] gasPrice = tx.getGasPrice();
 
-        /***   COINBASE  op ***/
-        // byte[] coinbase = block.getCoinbase();
-        byte[] coinbase = block.getBlockHeader().getRawDataOrBuilder().getWitnessAddress().toByteArray();
+            /*** GAS op ***/
+            //byte[] gas = tx.getGasLimit();
 
-        /*** TIMESTAMP  op  ***/
-        // long timestamp = block.getTimestamp();
-        long timestamp = block.getBlockHeader().getRawDataOrBuilder().getTimestamp();
+            /***        CALLVALUE op      ***/
+            // byte[] callValue = nullToEmpty(tx.getValue());
+            byte[] callValue = contract.getCallValue().toByteArray();
 
-        /*** NUMBER  op  ***/
-        // long number = block.getNumber();
-        long number = block.getBlockHeader().getRawDataOrBuilder().getNumber();
+            /***     CALLDATALOAD  op   ***/
+            /***     CALLDATACOPY  op   ***/
+            /***     CALLDATASIZE  op   ***/
+            // byte[] data = tx.isContractCreation() ? ByteUtil.EMPTY_BYTE_ARRAY : nullToEmpty(tx.getData());
+            data = contract.getData().toByteArray();
 
-        /*** DIFFICULTY  op  ***/
-        // byte[] difficulty = block.getDifficulty();
+            /***    PREVHASH  op  ***/
+            // byte[] lastHash = block.getParentHash();
+            lastHash = block.getBlockHeader().getRawDataOrBuilder().getParentHash().toByteArray();
 
-        /*** GASLIMIT op ***/
-        // byte[] gaslimit = block.getGasLimit();
+            /***   COINBASE  op ***/
+            // byte[] coinbase = block.getCoinbase();
+            coinbase = block.getBlockHeader().getRawDataOrBuilder().getWitnessAddress().toByteArray();
 
-        /*
-        if (logger.isInfoEnabled()) {
-            logger.info("Top level call: \n" +
-                            "address={}\n" +
-                            "origin={}\n" +
-                            "caller={}\n" +
-                            "balance={}\n" +
-                            "gasPrice={}\n" +
-                            "gas={}\n" +
-                            "callValue={}\n" +
-                            "data={}\n" +
-                            "lastHash={}\n" +
-                            "coinbase={}\n" +
-                            "timestamp={}\n" +
-                            "blockNumber={}\n" +
-                            "difficulty={}\n" +
-                            "gaslimit={}\n",
+            /*** TIMESTAMP  op  ***/
+            // long timestamp = block.getTimestamp();
+            timestamp = block.getBlockHeader().getRawDataOrBuilder().getTimestamp();
 
-                    Hex.toHexString(address),
-                    Hex.toHexString(origin),
-                    Hex.toHexString(caller),
-                    ByteUtil.bytesToBigInteger(balance),
-                    ByteUtil.bytesToBigInteger(gasPrice),
-                    ByteUtil.bytesToBigInteger(gas),
-                    ByteUtil.bytesToBigInteger(callValue),
-                    Hex.toHexString(data),
-                    Hex.toHexString(lastHash),
-                    Hex.toHexString(coinbase),
-                    timestamp,
-                    number,
-                    Hex.toHexString(difficulty),
-                    gaslimit);
+            /*** NUMBER  op  ***/
+            // long number = block.getNumber();
+            number = block.getBlockHeader().getRawDataOrBuilder().getNumber();
+
+            /*** DIFFICULTY  op  ***/
+            // byte[] difficulty = block.getDifficulty();
+
+            /*** GASLIMIT op ***/
+            // byte[] gaslimit = block.getGasLimit();
+            return new ProgramInvokeImpl(address, origin, caller, balance, callValue, data,
+                    lastHash, coinbase, timestamp, number, repository, blockStore);
+        } else {
+            return null;
         }
-        */
 
-        return new ProgramInvokeImpl(address, origin, caller, balance, callValue, data,
-                lastHash, coinbase, timestamp, number, repository, blockStore);
     }
 
     /**
@@ -167,38 +178,6 @@ public class ProgramInvokeFactoryImpl implements ProgramInvokeFactory {
         DataWord number = program.getNumber();
         DataWord difficulty = program.getDifficulty();
         DataWord gasLimit = program.getGasLimit();
-
-        if (logger.isInfoEnabled()) {
-            logger.info("Internal call: \n" +
-                            "address={}\n" +
-                            "origin={}\n" +
-                            "caller={}\n" +
-                            "balance={}\n" +
-                            "gasPrice={}\n" +
-                            "gas={}\n" +
-                            "callValue={}\n" +
-                            "data={}\n" +
-                            "lastHash={}\n" +
-                            "coinbase={}\n" +
-                            "timestamp={}\n" +
-                            "blockNumber={}\n" +
-                            "difficulty={}\n" +
-                            "gaslimit={}\n",
-                    Hex.toHexString(address.getLast20Bytes()),
-                    Hex.toHexString(origin.getLast20Bytes()),
-                    Hex.toHexString(caller.getLast20Bytes()),
-                    balance.toString(),
-                    gasPrice.longValue(),
-                    gas.longValue(),
-                    Hex.toHexString(callValue.getNoLeadZeroesData()),
-                    data == null ? "" : Hex.toHexString(data),
-                    Hex.toHexString(lastHash.getData()),
-                    Hex.toHexString(coinbase.getLast20Bytes()),
-                    timestamp.longValue(),
-                    number.longValue(),
-                    Hex.toHexString(difficulty.getNoLeadZeroesData()),
-                    gasLimit.bigIntValue());
-        }
 
         return new ProgramInvokeImpl(address, origin, caller, balance, gasPrice, gas, callValue,
                 data, lastHash, coinbase, timestamp, number, difficulty, gasLimit,
