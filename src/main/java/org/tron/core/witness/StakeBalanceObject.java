@@ -8,6 +8,7 @@ public class StakeBalanceObject {
   private AccountCapsule accountCapsule;
   private long balance;
   private StakeStrategyType strategyType;
+  private FreezeStrategy freezeStrategy; //todo: factory
 
   public StakeBalanceObject(AccountCapsule accountCapsule, long balance,
       StakeStrategyType strategyType) {
@@ -16,8 +17,7 @@ public class StakeBalanceObject {
     this.strategyType = StakeStrategyType.Linear;
   }
 
-  static public class stakeStrategyMessage {
-
+  static public class FreezePolicyContext {
     long balance;
     long now;
     long amount;
@@ -30,50 +30,80 @@ public class StakeBalanceObject {
 
   static public interface FreezeStrategy {
 
-    boolean freeze();
+    long getAllowedUnfreeze(FreezePolicyContext context);
 
-    long getAllowedUnfreezeBalance();
+    boolean isFreezeAllowed(FreezePolicyContext context);
 
-    boolean unfreeze();
+    boolean isUnfreezeAllowed(FreezePolicyContext context);
+
+    void freeze(FreezePolicyContext context);
+
+    void unfreeze(FreezePolicyContext context);
+
 
   }
 
-  static public class LinearFreezeStrategy {
+  public class FreezeStrategyImpl implements FreezeStrategy {
 
-    long beginTimestamp;//this is the time when freezing begin
-    long freezeCliffSeconds;//before the time,balance cannot be froze
-    long freezeDurationSeconds;//
-    long beginBalance;
+    int freezeSeconds = 0;
+    long coinSecondsEarned;
+    long startClaim;
+    long coinSecondsEarnedLastUpdate;
 
-    public boolean freeze() {
-      return false;
+    private long computeCoinSecondsEarned(FreezePolicyContext context) {
+      Preconditions.checkArgument(context.now >= coinSecondsEarnedLastUpdate);
+      long deltaSeconds = (context.now - coinSecondsEarnedLastUpdate) / 1000;
+      Preconditions.checkArgument(deltaSeconds >= 0);
+
+      long deltaCoinSeconds = context.balance;
+      deltaCoinSeconds *= deltaSeconds;
+
+      long coinSecondsEarnedCap = context.amount;
+      coinSecondsEarnedCap *= Math.max(freezeSeconds, 1);
+
+      return Math.min(coinSecondsEarned + deltaCoinSeconds, coinSecondsEarnedCap);
     }
 
-    public long getAllowedUnfreezeBalance(stakeStrategyMessage strategyObject) {
-      long allowedWithdraw = 0;
-      if (strategyObject.now > beginTimestamp) {
-        long elapsedTime = strategyObject.now - beginTimestamp;
-        Preconditions.checkArgument(elapsedTime > 0, "");
-        if (elapsedTime >= freezeCliffSeconds) {
-          long totalFroze = 0;
-          if (elapsedTime < freezeDurationSeconds) {
-            totalFroze = beginBalance * elapsedTime / freezeDurationSeconds;
-          } else {
-            totalFroze = beginBalance;
-          }
-          Preconditions.checkArgument(totalFroze > 0, "");
-          long unfreezeAlready = beginBalance - strategyObject.balance;
-          Preconditions.checkArgument(unfreezeAlready > 0, "");
-          allowedWithdraw = totalFroze - unfreezeAlready;
-          Preconditions.checkArgument(allowedWithdraw > 0, "");
-        }
+    private void updateCoinSecondsEarned(FreezePolicyContext context) {
+      coinSecondsEarned = computeCoinSecondsEarned(context);
+      coinSecondsEarnedLastUpdate = context.now;
+    }
 
+    @Override
+    public long getAllowedUnfreeze(FreezePolicyContext context) {
+      if (context.now <= startClaim) {
+        return 0;
       }
-      return allowedWithdraw;
+      long csEarned = computeCoinSecondsEarned(context);
+      long unfreezeAvailable = csEarned / Math.min(freezeSeconds, 1);
+      Preconditions.checkArgument(unfreezeAvailable <= context.balance);
+      return unfreezeAvailable;
     }
 
-    public boolean unfreeze() {
-      return false;
+    @Override
+    public boolean isFreezeAllowed(FreezePolicyContext context) {
+      return true;
+    }
+
+    @Override
+    public boolean isUnfreezeAllowed(FreezePolicyContext context) {
+      return context.amount <= getAllowedUnfreeze(context);
+    }
+
+    @Override
+    public void freeze(FreezePolicyContext context) {
+      updateCoinSecondsEarned(context);
+    }
+
+
+    @Override
+    public void unfreeze(FreezePolicyContext context) {
+      updateCoinSecondsEarned(context);
+      long coinSecondsNeeded = context.amount;
+      coinSecondsNeeded *= Math.max(freezeSeconds, 1);
+      Preconditions.checkArgument(coinSecondsNeeded <= coinSecondsEarned);
+
+      coinSecondsEarned -= coinSecondsNeeded;
     }
 
   }
