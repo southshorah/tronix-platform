@@ -31,6 +31,15 @@ message Account {
   int64 latest_opration_time = 10;
 }
 
+// freezeAccount
+message FreezeAccount {
+  bytes account_address = 1;
+  int64 freeze_balance = 2;
+  int64 unfreeze_balance = 3;
+  int64 last_freeze_time = 4;
+  int64 last_withdraw_time = 5;
+}
+
 // Witness
 message Witness {
   bytes address = 1;

@@ -1,20 +1,24 @@
 package org.tron.core.witness.freeze;
 
+
 import org.tron.core.capsule.AccountCapsule;
+import org.tron.core.capsule.FreezeAccountCapsule;
+import org.tron.core.db.AccountStore;
+import org.tron.core.db.FreezeAccountStore;
 
 public interface FreezeStrategy {
 
-  boolean isFreezeAllowed(FreezeBalanceObject object, FreezePolicyContext context);
+  boolean isFreezeAllowed(FreezeAccountCapsule object, FreezePolicyContext context);
 
-  void freeze(FreezeBalanceObject object, AccountCapsule accountCapsule,
-      FreezePolicyContext context);
+  void freeze(FreezeAccountCapsule object, AccountCapsule accountCapsule,
+      FreezePolicyContext context, boolean isAccountModified, boolean isFreezeAccountModified);
 
-  boolean isWithdrawAllowed(FreezeBalanceObject object, UnfreezePolicyContext context);
+  boolean isWithdrawAllowed(FreezeAccountCapsule object, UnfreezePolicyContext context);
 
-  long getAllowedWithdraw(FreezeBalanceObject object, UnfreezePolicyContext context);
+  long getAllowedWithdraw(FreezeAccountCapsule object, UnfreezePolicyContext context);
 
-  void withdraw(FreezeBalanceObject object, AccountCapsule accountCapsule,
-      UnfreezePolicyContext context);
+  void withdraw(FreezeAccountCapsule object, AccountCapsule accountCapsule,
+      UnfreezePolicyContext context, boolean isAccountModified, boolean isFreezeAccountModified);
 
 
   public static FreezeStrategy createFreezeStrategy(StakeStrategyType strategyType) {

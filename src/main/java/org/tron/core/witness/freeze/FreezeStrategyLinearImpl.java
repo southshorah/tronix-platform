@@ -3,6 +3,9 @@ package org.tron.core.witness.freeze;
 
 import lombok.extern.slf4j.Slf4j;
 import org.tron.core.capsule.AccountCapsule;
+import org.tron.core.capsule.FreezeAccountCapsule;
+import org.tron.core.db.AccountStore;
+import org.tron.core.db.FreezeAccountStore;
 
 @Slf4j
 public class FreezeStrategyLinearImpl implements FreezeStrategy {
@@ -15,16 +18,16 @@ public class FreezeStrategyLinearImpl implements FreezeStrategy {
 
 
   @Override
-  public boolean isFreezeAllowed(FreezeBalanceObject fbo, FreezePolicyContext context) {
+  public boolean isFreezeAllowed(FreezeAccountCapsule fbo, FreezePolicyContext context) {
     if (context.amount < 0) {
       logger.info("context.amount < 0");
       return false;
     }
-    if (context.amount + fbo.unfreezeBalance > MAX_BALANCE) {
+    if (context.amount + fbo.getUnfreezeBalance() > MAX_BALANCE) {
       logger.info("context.amount + unfreezeBalance > MAX_BALANCE");
       return false;
     }
-    if (context.now < fbo.lastFreezeTime) {
+    if (context.now < fbo.getLastFreezeTime()) {
       logger.info("context.now < lastFreezeTime");
       return false;
     }
@@ -33,63 +36,63 @@ public class FreezeStrategyLinearImpl implements FreezeStrategy {
   }
 
   @Override
-  public void freeze(FreezeBalanceObject fbo, AccountCapsule accountCapsule,
-      FreezePolicyContext context) {
+  public void freeze(FreezeAccountCapsule fbo, AccountCapsule accountCapsule,
+      FreezePolicyContext context, boolean isAccountModified, boolean isFreezeAccountModified) {
     //If the total amount exceeds the maximum limit, do not freeze
-    if (fbo.freezeBalance + context.amount >= MAX_FREEZE_BALANCE) {
-      fbo.unfreezeBalance += context.amount;
+    if (fbo.getFreezeBalance() + context.amount >= MAX_FREEZE_BALANCE) {
+      fbo.setUnfreezeBalance(fbo.getUnfreezeBalance() + context.amount);
     } else {
-      fbo.freezeBalance += context.amount;
+      fbo.setFreezeBalance(fbo.getFreezeBalance() + context.amount);
     }
-
-    fbo.lastFreezeTime = context.now;
+    fbo.setLastFreezeTime(context.now);
   }
 
   @Override
-  public boolean isWithdrawAllowed(FreezeBalanceObject fbo, UnfreezePolicyContext context) {
+  public boolean isWithdrawAllowed(FreezeAccountCapsule fbo, UnfreezePolicyContext context) {
 
     //Limit the withdrawal frequency
-    if (context.now - fbo.lastWithdrawTime < MIN_WITHDRAW_PERIOD) {
+    if (context.now - fbo.getLastWithdrawTime() < MIN_WITHDRAW_PERIOD) {
       logger.info("context.now[{}] - lastWithdrawTime[{}] < MIN_WITHDRAW_PERIOD", context.now,
-          fbo.lastWithdrawTime);
+          fbo.getLastWithdrawTime());
       return false;
     }
 
-    if (context.now - fbo.lastFreezeTime >= MIN_ALL_WITHDRAW_PERIOD) {
+    if (context.now - fbo.getLastFreezeTime() >= MIN_ALL_WITHDRAW_PERIOD) {
       //Allow to withdraw all balance if more than 3 days from the last freeze
-      return context.amount <= fbo.freezeBalance + fbo.unfreezeBalance;
+      return context.amount <= fbo.getFreezeBalance() + fbo.getUnfreezeBalance();
     } else {
       //Allow to withdraw unfreezeBalance only
-      return context.amount <= fbo.unfreezeBalance;
+      return context.amount <= fbo.getUnfreezeBalance();
     }
 
   }
 
 
   @Override
-  public long getAllowedWithdraw(FreezeBalanceObject fbo, UnfreezePolicyContext context) {
-    if (context.now - fbo.lastFreezeTime >= MIN_ALL_WITHDRAW_PERIOD) {
+  public long getAllowedWithdraw(FreezeAccountCapsule fbo, UnfreezePolicyContext context) {
+    if (context.now - fbo.getLastFreezeTime() >= MIN_ALL_WITHDRAW_PERIOD) {
       //Allow to withdraw all balance if more than 3 days from the last freeze
-      return fbo.freezeBalance + fbo.unfreezeBalance;
+      return fbo.getFreezeBalance() + fbo.getUnfreezeBalance();
     } else {
       //Allow to withdraw unfreezeBalance only
-      return fbo.unfreezeBalance;
+      return fbo.getUnfreezeBalance();
     }
   }
 
   @Override
-  public void withdraw(FreezeBalanceObject fbo, AccountCapsule accountCapsule,
-      UnfreezePolicyContext context) {
-    if (fbo.unfreezeBalance >= context.amount) {
-      fbo.unfreezeBalance -= context.amount;
+  public void withdraw(FreezeAccountCapsule fbo, AccountCapsule accountCapsule,
+      UnfreezePolicyContext context, boolean isAccountModified, boolean isFreezeAccountModified) {
+    if (fbo.getUnfreezeBalance() >= context.amount) {
+      fbo.setUnfreezeBalance(fbo.getUnfreezeBalance() - context.amount);
     } else {
-      fbo.unfreezeBalance = 0;
-      fbo.freezeBalance -= context.amount - fbo.unfreezeBalance;
+      fbo.setUnfreezeBalance(0);
+      fbo.setFreezeBalance(fbo.getFreezeBalance() + fbo.getUnfreezeBalance() - context.amount);
     }
 
     accountCapsule.setBalance(accountCapsule.getBalance() + context.amount);
 
-    fbo.lastWithdrawTime = context.now;
+    fbo.setLastWithdrawTime(context.now);
+
   }
 
 
