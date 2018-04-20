@@ -3,30 +3,28 @@ package org.tron.core.witness.freeze;
 
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.FreezeAccountCapsule;
-import org.tron.core.db.AccountStore;
-import org.tron.core.db.FreezeAccountStore;
 
 public interface FreezeStrategy {
 
   boolean isFreezeAllowed(FreezeAccountCapsule object, FreezePolicyContext context);
 
   void freeze(FreezeAccountCapsule object, AccountCapsule accountCapsule,
-      FreezePolicyContext context, boolean isAccountModified, boolean isFreezeAccountModified);
+      FreezePolicyContext context, AccountModifiedResult accountModifiedResult);
 
-  boolean isWithdrawAllowed(FreezeAccountCapsule object, UnfreezePolicyContext context);
+  boolean isWithdrawAllowed(FreezeAccountCapsule object, withdrawPolicyContext context);
 
-  long getAllowedWithdraw(FreezeAccountCapsule object, UnfreezePolicyContext context);
+  long getAllowedWithdraw(FreezeAccountCapsule object, withdrawPolicyContext context);
 
   void withdraw(FreezeAccountCapsule object, AccountCapsule accountCapsule,
-      UnfreezePolicyContext context, boolean isAccountModified, boolean isFreezeAccountModified);
+      withdrawPolicyContext context, AccountModifiedResult accountModifiedResult);
 
 
   public static FreezeStrategy createFreezeStrategy(StakeStrategyType strategyType) {
     switch (strategyType) {
       case None:
-        return new FreezeStrategyNoneImpl();
+        return new FreezeStrategyNone();
       case Linear:
-        return new FreezeStrategyLinearImpl();
+        return new FreezeStrategyLinear();
       default:
         throw new RuntimeException("unknown strategyType[" + strategyType + "]");
     }
@@ -35,14 +33,20 @@ public interface FreezeStrategy {
 
   static public class FreezePolicyContext {
 
-    long now;
-    long amount;
+    public long now;
+    public long amount;
   }
 
-  static public class UnfreezePolicyContext {
+  static public class withdrawPolicyContext {
 
-    long now;
-    long amount;
+    public long now;
+    public long amount;
+  }
+
+  static public class AccountModifiedResult {
+
+    public boolean isAccountModified;
+    public boolean isFreezeAccountModified;
   }
 
   static public enum StakeStrategyType {

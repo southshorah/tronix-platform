@@ -5,16 +5,15 @@ import static org.tron.core.witness.freeze.FreezeStrategy.createFreezeStrategy;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.extern.slf4j.Slf4j;
-import org.tron.common.crypto.ECKey;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.db.AccountStore;
 import org.tron.core.db.FreezeAccountStore;
 import org.tron.core.witness.freeze.FreezeStrategy;
+import org.tron.core.witness.freeze.FreezeStrategy.AccountModifiedResult;
 import org.tron.core.witness.freeze.FreezeStrategy.FreezePolicyContext;
 import org.tron.core.witness.freeze.FreezeStrategy.StakeStrategyType;
-import org.tron.core.witness.freeze.FreezeStrategy.UnfreezePolicyContext;
+import org.tron.core.witness.freeze.FreezeStrategy.withdrawPolicyContext;
 import org.tron.protos.Protocol.FreezeAccount;
-import org.tron.protos.Protocol.Witness;
 
 @Slf4j
 public class FreezeAccountCapsule implements ProtoCapsule<FreezeAccount> {
@@ -75,36 +74,38 @@ public class FreezeAccountCapsule implements ProtoCapsule<FreezeAccount> {
   public void freeze(AccountCapsule accountCapsule,
       FreezePolicyContext context, AccountStore accountStore,
       FreezeAccountStore freezeAccountStore) {
-    boolean isAccountModified = false;
-    boolean isFreezeAccountModified = false;
-    freezeStrategy.freeze(this, accountCapsule, context,
-        isAccountModified, isFreezeAccountModified);
-    if (isAccountModified) {
+
+    AccountModifiedResult accountModifiedResult = new AccountModifiedResult();
+
+    freezeStrategy.freeze(this, accountCapsule, context, accountModifiedResult);
+
+    if (accountModifiedResult.isAccountModified) {
       accountStore.put(accountCapsule.createDbKey(), accountCapsule);
     }
-    if (isFreezeAccountModified) {
+    if (accountModifiedResult.isFreezeAccountModified) {
       freezeAccountStore.put(this.createDbKey(), this);
     }
   }
 
-  public boolean isWithdrawAllowed(UnfreezePolicyContext context) {
+  public boolean isWithdrawAllowed(withdrawPolicyContext context) {
     return freezeStrategy.isWithdrawAllowed(this, context);
   }
 
-  public long getAllowedWithdraw(UnfreezePolicyContext context) {
+  public long getAllowedWithdraw(withdrawPolicyContext context) {
     return freezeStrategy.getAllowedWithdraw(this, context);
   }
 
-  public void withdraw(AccountCapsule accountCapsule, UnfreezePolicyContext context,
+  public void withdraw(AccountCapsule accountCapsule, withdrawPolicyContext context,
       AccountStore accountStore, FreezeAccountStore freezeAccountStore) {
-    boolean isAccountModified = false;
-    boolean isFreezeAccountModified = false;
-    freezeStrategy.withdraw(this, accountCapsule, context,
-        isAccountModified, isFreezeAccountModified);
-    if (isAccountModified) {
+
+    AccountModifiedResult accountModifiedResult = new AccountModifiedResult();
+
+    freezeStrategy.withdraw(this, accountCapsule, context, accountModifiedResult);
+
+    if (accountModifiedResult.isAccountModified) {
       accountStore.put(accountCapsule.createDbKey(), accountCapsule);
     }
-    if (isFreezeAccountModified) {
+    if (accountModifiedResult.isFreezeAccountModified) {
       freezeAccountStore.put(this.createDbKey(), this);
     }
   }

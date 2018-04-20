@@ -1,4 +1,4 @@
-package org.tron.program;
+package org.tron.core.witness;
 
 import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;

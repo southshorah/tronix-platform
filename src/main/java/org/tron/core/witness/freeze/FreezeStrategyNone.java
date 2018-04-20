@@ -2,11 +2,9 @@ package org.tron.core.witness.freeze;
 
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.FreezeAccountCapsule;
-import org.tron.core.db.AccountStore;
-import org.tron.core.db.FreezeAccountStore;
 
 //No freeze in funds
-public class FreezeStrategyNoneImpl implements FreezeStrategy {
+public class FreezeStrategyNone implements FreezeStrategy {
 
   @Override
   public boolean isFreezeAllowed(FreezeAccountCapsule fbo, FreezePolicyContext context) {
@@ -15,23 +13,24 @@ public class FreezeStrategyNoneImpl implements FreezeStrategy {
 
   @Override
   public void freeze(FreezeAccountCapsule fbo, AccountCapsule accountCapsule,
-      FreezePolicyContext context, boolean isAccountModified, boolean isFreezeAccountModified) {
+      FreezePolicyContext context, AccountModifiedResult accountModifiedResult) {
     //Direct deposit of account balance
     accountCapsule.setBalance(accountCapsule.getBalance() + context.amount);
+    accountModifiedResult.isAccountModified = true;
   }
 
   @Override
-  public boolean isWithdrawAllowed(FreezeAccountCapsule fbo, UnfreezePolicyContext context) {
+  public boolean isWithdrawAllowed(FreezeAccountCapsule fbo, withdrawPolicyContext context) {
     return context.amount == 0;
   }
 
   @Override
-  public long getAllowedWithdraw(FreezeAccountCapsule fbo, UnfreezePolicyContext context) {
+  public long getAllowedWithdraw(FreezeAccountCapsule fbo, withdrawPolicyContext context) {
     return 0;
   }
 
   @Override
   public void withdraw(FreezeAccountCapsule fbo, AccountCapsule accountCapsule,
-      UnfreezePolicyContext context, boolean isAccountModified, boolean isFreezeAccountModified) {
+      withdrawPolicyContext context, AccountModifiedResult accountModifiedResult) {
   }
 }

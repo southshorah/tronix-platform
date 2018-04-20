@@ -4,17 +4,15 @@ package org.tron.core.witness.freeze;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.FreezeAccountCapsule;
-import org.tron.core.db.AccountStore;
-import org.tron.core.db.FreezeAccountStore;
 
 @Slf4j
-public class FreezeStrategyLinearImpl implements FreezeStrategy {
+public class FreezeStrategyLinear implements FreezeStrategy {
 
   // 24 * 60 * 60 * 1000 * WITNESS_PAY_PER_BLOCK / (Manager.LOOP_INTERVAL * 27);
   public final static long MAX_FREEZE_BALANCE = 20480000000L;//DROP
   public final static long MIN_WITHDRAW_PERIOD = 86400000L;//24 * 60 * 60 * 1000 ms
   public final static long MIN_ALL_WITHDRAW_PERIOD = 259200000L;//3 * 24 * 60 * 60 * 1000 ms
-  public final static long MAX_BALANCE = Long.MAX_VALUE;
+  public final static long MAX_BALANCE = 100000000000000L;
 
 
   @Override
@@ -37,7 +35,7 @@ public class FreezeStrategyLinearImpl implements FreezeStrategy {
 
   @Override
   public void freeze(FreezeAccountCapsule fbo, AccountCapsule accountCapsule,
-      FreezePolicyContext context, boolean isAccountModified, boolean isFreezeAccountModified) {
+      FreezePolicyContext context, AccountModifiedResult accountModifiedResult) {
     //If the total amount exceeds the maximum limit, do not freeze
     if (fbo.getFreezeBalance() + context.amount >= MAX_FREEZE_BALANCE) {
       fbo.setUnfreezeBalance(fbo.getUnfreezeBalance() + context.amount);
@@ -45,10 +43,12 @@ public class FreezeStrategyLinearImpl implements FreezeStrategy {
       fbo.setFreezeBalance(fbo.getFreezeBalance() + context.amount);
     }
     fbo.setLastFreezeTime(context.now);
+    accountModifiedResult.isFreezeAccountModified = true;
+
   }
 
   @Override
-  public boolean isWithdrawAllowed(FreezeAccountCapsule fbo, UnfreezePolicyContext context) {
+  public boolean isWithdrawAllowed(FreezeAccountCapsule fbo, withdrawPolicyContext context) {
 
     //Limit the withdrawal frequency
     if (context.now - fbo.getLastWithdrawTime() < MIN_WITHDRAW_PERIOD) {
@@ -69,7 +69,7 @@ public class FreezeStrategyLinearImpl implements FreezeStrategy {
 
 
   @Override
-  public long getAllowedWithdraw(FreezeAccountCapsule fbo, UnfreezePolicyContext context) {
+  public long getAllowedWithdraw(FreezeAccountCapsule fbo, withdrawPolicyContext context) {
     if (context.now - fbo.getLastFreezeTime() >= MIN_ALL_WITHDRAW_PERIOD) {
       //Allow to withdraw all balance if more than 3 days from the last freeze
       return fbo.getFreezeBalance() + fbo.getUnfreezeBalance();
@@ -81,18 +81,19 @@ public class FreezeStrategyLinearImpl implements FreezeStrategy {
 
   @Override
   public void withdraw(FreezeAccountCapsule fbo, AccountCapsule accountCapsule,
-      UnfreezePolicyContext context, boolean isAccountModified, boolean isFreezeAccountModified) {
+      withdrawPolicyContext context, AccountModifiedResult accountModifiedResult) {
     if (fbo.getUnfreezeBalance() >= context.amount) {
       fbo.setUnfreezeBalance(fbo.getUnfreezeBalance() - context.amount);
     } else {
-      fbo.setUnfreezeBalance(0);
       fbo.setFreezeBalance(fbo.getFreezeBalance() + fbo.getUnfreezeBalance() - context.amount);
+      fbo.setUnfreezeBalance(0);
     }
 
     accountCapsule.setBalance(accountCapsule.getBalance() + context.amount);
 
     fbo.setLastWithdrawTime(context.now);
-
+    accountModifiedResult.isAccountModified = true;
+    accountModifiedResult.isFreezeAccountModified = true;
   }
 
 
