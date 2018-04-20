@@ -74,6 +74,7 @@ public class Manager {
   private DynamicPropertiesStore dynamicPropertiesStore;
   private BlockIndexStore blockIndexStore;
   private WitnessScheduleStore witnessScheduleStore;
+  private FreezeAccountStore  freezeAccountStore;
 
   @Autowired
   private PeersStore peersStore;
@@ -120,6 +121,14 @@ public class Manager {
 
   public void setWitnessScheduleStore(final WitnessScheduleStore witnessScheduleStore) {
     this.witnessScheduleStore = witnessScheduleStore;
+  }
+
+  public FreezeAccountStore getFreezeAccountStore() {
+    return freezeAccountStore;
+  }
+
+  public void setFreezeAccountStore(FreezeAccountStore freezeAccountStore) {
+    this.freezeAccountStore = freezeAccountStore;
   }
 
   public List<TransactionCapsule> getPendingTransactions() {
@@ -218,6 +227,7 @@ public class Manager {
     DynamicPropertiesStore.destroy();
     WitnessScheduleStore.destroy();
     BlockIndexStore.destroy();
+    FreezeAccountStore.destroy();
   }
 
   /**
@@ -236,6 +246,7 @@ public class Manager {
     this.setWitnessScheduleStore(WitnessScheduleStore.create("witness_schedule"));
     this.setWitnessController(WitnessController.createInstance(this));
     this.setBlockIndexStore(BlockIndexStore.create("block-index"));
+    this.setFreezeAccountStore(FreezeAccountStore.create("freeze_account"));
     this.khaosDb = new KhaosDatabase("block" + "_KDB");
     this.pendingTransactions = Collections.synchronizedList(Lists.newArrayList());
     this.initGenesis();

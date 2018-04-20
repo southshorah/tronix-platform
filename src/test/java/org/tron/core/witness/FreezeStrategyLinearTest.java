@@ -21,23 +21,11 @@ public class FreezeStrategyLinearTest {
 
   private static ByteString address = ByteString.copyFrom("00000000002".getBytes());
 
-  private static FreezeAccountCapsule freezeAccountCapsule = new FreezeAccountCapsule(address);
-
   private static FreezeStrategy strategy = FreezeStrategy
       .createFreezeStrategy(StakeStrategyType.Linear);
-  private static FreezePolicyContext freezePolicyContext = new FreezePolicyContext();
-  private static withdrawPolicyContext withdrawPolicyContext = new withdrawPolicyContext();
 
   @BeforeClass
   public static void init() {
-    freezePolicyContext.now = DateTime.parse("20180101", DateTimeFormat.forPattern("yyyyMMdd"))
-        .getMillis();
-    freezePolicyContext.amount = 100;
-
-    withdrawPolicyContext.now = DateTime.parse("20180101", DateTimeFormat.forPattern("yyyyMMdd"))
-        .getMillis();
-    withdrawPolicyContext.amount = 100;
-
   }
 
   @Test
