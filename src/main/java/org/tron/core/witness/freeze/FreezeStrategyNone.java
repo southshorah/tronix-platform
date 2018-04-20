@@ -8,7 +8,7 @@ public class FreezeStrategyNone implements FreezeStrategy {
 
   @Override
   public boolean isFreezeAllowed(FreezeAccountCapsule fbo, FreezePolicyContext context) {
-    return true;
+    return context.amount > 0;
   }
 
   @Override
@@ -20,17 +20,17 @@ public class FreezeStrategyNone implements FreezeStrategy {
   }
 
   @Override
-  public boolean isWithdrawAllowed(FreezeAccountCapsule fbo, withdrawPolicyContext context) {
+  public boolean isWithdrawAllowed(FreezeAccountCapsule fbo, WithdrawPolicyContext context) {
     return context.amount == 0;
   }
 
   @Override
-  public long getAllowedWithdraw(FreezeAccountCapsule fbo, withdrawPolicyContext context) {
+  public long getAllowedWithdraw(FreezeAccountCapsule fbo, WithdrawPolicyContext context) {
     return 0;
   }
 
   @Override
   public void withdraw(FreezeAccountCapsule fbo, AccountCapsule accountCapsule,
-      withdrawPolicyContext context, AccountModifiedResult accountModifiedResult) {
+      WithdrawPolicyContext context, AccountModifiedResult accountModifiedResult) {
   }
 }

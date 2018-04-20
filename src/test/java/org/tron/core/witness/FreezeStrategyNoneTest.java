@@ -13,7 +13,7 @@ import org.tron.core.witness.freeze.FreezeStrategy;
 import org.tron.core.witness.freeze.FreezeStrategy.AccountModifiedResult;
 import org.tron.core.witness.freeze.FreezeStrategy.FreezePolicyContext;
 import org.tron.core.witness.freeze.FreezeStrategy.StakeStrategyType;
-import org.tron.core.witness.freeze.FreezeStrategy.withdrawPolicyContext;
+import org.tron.core.witness.freeze.FreezeStrategy.WithdrawPolicyContext;
 import org.tron.protos.Protocol.AccountType;
 
 public class FreezeStrategyNoneTest {
@@ -27,7 +27,7 @@ public class FreezeStrategyNoneTest {
   private static FreezeStrategy strategy = FreezeStrategy
       .createFreezeStrategy(StakeStrategyType.None);
   private static FreezePolicyContext freezePolicyContext = new FreezePolicyContext();
-  private static withdrawPolicyContext withdrawPolicyContext = new withdrawPolicyContext();
+  private static WithdrawPolicyContext withdrawPolicyContext = new WithdrawPolicyContext();
 
   @BeforeClass
   public static void init() {

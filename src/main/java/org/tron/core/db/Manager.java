@@ -32,6 +32,7 @@ import org.tron.core.actuator.ActuatorFactory;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.BlockCapsule.BlockId;
+import org.tron.core.capsule.FreezeAccountCapsule;
 import org.tron.core.capsule.TransactionCapsule;
 import org.tron.core.capsule.TransactionResultCapsule;
 import org.tron.core.capsule.WitnessCapsule;
@@ -51,6 +52,9 @@ import org.tron.core.exception.UnLinkedBlockException;
 import org.tron.core.exception.ValidateScheduleException;
 import org.tron.core.exception.ValidateSignatureException;
 import org.tron.core.witness.WitnessController;
+import org.tron.core.witness.freeze.FreezeStrategy;
+import org.tron.core.witness.freeze.FreezeStrategy.FreezePolicyContext;
+import org.tron.core.witness.freeze.FreezeStrategy.WithdrawPolicyContext;
 import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Transaction;
 
@@ -74,7 +78,7 @@ public class Manager {
   private DynamicPropertiesStore dynamicPropertiesStore;
   private BlockIndexStore blockIndexStore;
   private WitnessScheduleStore witnessScheduleStore;
-  private FreezeAccountStore  freezeAccountStore;
+  private FreezeAccountStore freezeAccountStore;
 
   @Autowired
   private PeersStore peersStore;
@@ -418,7 +422,7 @@ public class Manager {
           doValidateFreq(balance, 0, latestOperationTime);
         }
         accountCapsule.setLatestOperationTime(Time.getCurrentMillis());
-        this.getAccountStore().put(accountCapsule.createDbKey(),accountCapsule);
+        this.getAccountStore().put(accountCapsule.createDbKey(), accountCapsule);
       }
     }
   }
@@ -930,6 +934,7 @@ public class Manager {
     }
     try {
       adjustBalance(witnessCapsule.getAddress().toByteArray(), WITNESS_PAY_PER_BLOCK);
+//      freezeWitnessPay(witnessCapsule, block.getTimeStamp());
     } catch (BalanceInsufficientException e) {
       logger.debug(e.getMessage(), e);
     }
@@ -937,6 +942,49 @@ public class Manager {
     logger.debug("updateSignedWitness. witness address:{}, blockNum:{}, totalProduced:{}",
         witnessCapsule.createReadableString(), block.getNum(), witnessCapsule.getTotalProduced());
 
+  }
+
+  private void freezeWitnessPay(WitnessCapsule witnessCapsule, long time) {
+    FreezeAccountCapsule freezeAccountCapsule = freezeAccountStore
+        .get(witnessCapsule.createDbKey());
+
+    FreezePolicyContext freezePolicyContext = FreezeStrategy
+        .createFreezePolicyContext(time, WITNESS_PAY_PER_BLOCK);
+
+    if (!freezeAccountCapsule.isFreezeAllowed(freezePolicyContext)) {
+      throw new RuntimeException("freezeWitnessPay, Check error");
+    }
+
+    AccountCapsule accountCapsule = getAccountStore().get(witnessCapsule.createDbKey());
+    freezeAccountCapsule
+        .freeze(accountCapsule, freezePolicyContext, accountStore, freezeAccountStore);
+
+  }
+
+  private void withdrawWitnessPay(WitnessCapsule witnessCapsule, long time, long amount) {
+    FreezeAccountCapsule freezeAccountCapsule = freezeAccountStore
+        .get(witnessCapsule.createDbKey());
+
+    WithdrawPolicyContext withdrawPolicyContext = FreezeStrategy
+        .createWithdrawPolicyContext(time, amount);
+
+    if (!freezeAccountCapsule.isWithdrawAllowed(withdrawPolicyContext)) {
+      throw new RuntimeException("withdrawWitnessPay, Check error");
+    }
+
+    AccountCapsule accountCapsule = getAccountStore().get(witnessCapsule.createDbKey());
+    freezeAccountCapsule
+        .withdraw(accountCapsule, withdrawPolicyContext, accountStore, freezeAccountStore);
+  }
+
+  private long getAllowedWithdraw(WitnessCapsule witnessCapsule, long time) {
+    FreezeAccountCapsule freezeAccountCapsule = freezeAccountStore
+        .get(witnessCapsule.createDbKey());
+
+    WithdrawPolicyContext withdrawPolicyContext = FreezeStrategy
+        .createWithdrawPolicyContext(time, 0L);
+
+    return freezeAccountCapsule.getAllowedWithdraw(withdrawPolicyContext);
   }
 
   public void updateMaintenanceState(boolean needMaint) {

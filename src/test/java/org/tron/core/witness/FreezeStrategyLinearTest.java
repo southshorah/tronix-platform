@@ -13,7 +13,7 @@ import org.tron.core.witness.freeze.FreezeStrategy;
 import org.tron.core.witness.freeze.FreezeStrategy.AccountModifiedResult;
 import org.tron.core.witness.freeze.FreezeStrategy.FreezePolicyContext;
 import org.tron.core.witness.freeze.FreezeStrategy.StakeStrategyType;
-import org.tron.core.witness.freeze.FreezeStrategy.withdrawPolicyContext;
+import org.tron.core.witness.freeze.FreezeStrategy.WithdrawPolicyContext;
 import org.tron.core.witness.freeze.FreezeStrategyLinear;
 import org.tron.protos.Protocol.AccountType;
 
@@ -103,7 +103,7 @@ public class FreezeStrategyLinearTest {
   @Test
   public void testIsWithdrawAllowed() {
     FreezeAccountCapsule freezeAccountCapsule = new FreezeAccountCapsule(address);
-    withdrawPolicyContext withdrawPolicyContext = new withdrawPolicyContext();
+    WithdrawPolicyContext withdrawPolicyContext = new WithdrawPolicyContext();
     boolean isWithdrawAllowed;
 
     //Withdraw frequency is too fast
@@ -151,7 +151,7 @@ public class FreezeStrategyLinearTest {
     freezeAccountCapsule.setUnfreezeBalance(1000L);
     long allowedWithdraw;
 
-    withdrawPolicyContext withdrawPolicyContext = new withdrawPolicyContext();
+    WithdrawPolicyContext withdrawPolicyContext = new WithdrawPolicyContext();
     withdrawPolicyContext.amount = 1500L;
 
     // allow to withdraw all balance if more than 3 days from the last freeze
@@ -179,7 +179,7 @@ public class FreezeStrategyLinearTest {
   public void testWithdraw() {
     FreezeAccountCapsule freezeAccountCapsule = new FreezeAccountCapsule(address);
 
-    withdrawPolicyContext withdrawPolicyContext = new withdrawPolicyContext();
+    WithdrawPolicyContext withdrawPolicyContext = new WithdrawPolicyContext();
     withdrawPolicyContext.now = DateTime
         .parse("20180203 10:00:00", DateTimeFormat.forPattern("yyyyMMdd HH:mm:ss"))
         .getMillis();

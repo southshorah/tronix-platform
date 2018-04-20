@@ -12,7 +12,7 @@ import org.tron.core.witness.freeze.FreezeStrategy;
 import org.tron.core.witness.freeze.FreezeStrategy.AccountModifiedResult;
 import org.tron.core.witness.freeze.FreezeStrategy.FreezePolicyContext;
 import org.tron.core.witness.freeze.FreezeStrategy.StakeStrategyType;
-import org.tron.core.witness.freeze.FreezeStrategy.withdrawPolicyContext;
+import org.tron.core.witness.freeze.FreezeStrategy.WithdrawPolicyContext;
 import org.tron.protos.Protocol.FreezeAccount;
 
 @Slf4j
@@ -87,15 +87,15 @@ public class FreezeAccountCapsule implements ProtoCapsule<FreezeAccount> {
     }
   }
 
-  public boolean isWithdrawAllowed(withdrawPolicyContext context) {
+  public boolean isWithdrawAllowed(WithdrawPolicyContext context) {
     return freezeStrategy.isWithdrawAllowed(this, context);
   }
 
-  public long getAllowedWithdraw(withdrawPolicyContext context) {
+  public long getAllowedWithdraw(WithdrawPolicyContext context) {
     return freezeStrategy.getAllowedWithdraw(this, context);
   }
 
-  public void withdraw(AccountCapsule accountCapsule, withdrawPolicyContext context,
+  public void withdraw(AccountCapsule accountCapsule, WithdrawPolicyContext context,
       AccountStore accountStore, FreezeAccountStore freezeAccountStore) {
 
     AccountModifiedResult accountModifiedResult = new AccountModifiedResult();

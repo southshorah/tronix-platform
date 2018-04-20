@@ -11,12 +11,12 @@ public interface FreezeStrategy {
   void freeze(FreezeAccountCapsule object, AccountCapsule accountCapsule,
       FreezePolicyContext context, AccountModifiedResult accountModifiedResult);
 
-  boolean isWithdrawAllowed(FreezeAccountCapsule object, withdrawPolicyContext context);
+  boolean isWithdrawAllowed(FreezeAccountCapsule object, WithdrawPolicyContext context);
 
-  long getAllowedWithdraw(FreezeAccountCapsule object, withdrawPolicyContext context);
+  long getAllowedWithdraw(FreezeAccountCapsule object, WithdrawPolicyContext context);
 
   void withdraw(FreezeAccountCapsule object, AccountCapsule accountCapsule,
-      withdrawPolicyContext context, AccountModifiedResult accountModifiedResult);
+      WithdrawPolicyContext context, AccountModifiedResult accountModifiedResult);
 
 
   public static FreezeStrategy createFreezeStrategy(StakeStrategyType strategyType) {
@@ -31,13 +31,28 @@ public interface FreezeStrategy {
 
   }
 
+  public static FreezePolicyContext createFreezePolicyContext(long now, long amount) {
+    FreezePolicyContext context = new FreezePolicyContext();
+    context.now = now;
+    context.amount = amount;
+    return context;
+  }
+
+  public static WithdrawPolicyContext createWithdrawPolicyContext(long now, long amount) {
+    WithdrawPolicyContext context = new WithdrawPolicyContext();
+    context.now = now;
+    context.amount = amount;
+    return context;
+  }
+
+
   static public class FreezePolicyContext {
 
     public long now;
     public long amount;
   }
 
-  static public class withdrawPolicyContext {
+  static public class WithdrawPolicyContext {
 
     public long now;
     public long amount;
