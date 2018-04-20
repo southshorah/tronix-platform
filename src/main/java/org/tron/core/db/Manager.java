@@ -82,6 +82,7 @@ public class Manager {
 
   private KhaosDatabase khaosDb;
   private RevokingDatabase revokingStore;
+
   @Getter
   private DialogOptional dialog = DialogOptional.instance();
 
@@ -385,7 +386,6 @@ public class Manager {
         RevokingStore.Dialog tmpDialog = revokingStore.buildDialog()) {
       processTransaction(trx);
       pendingTransactions.add(trx);
-
       tmpDialog.merge();
     } catch (RevokingStoreIllegalStateException e) {
       logger.debug(e.getMessage(), e);
@@ -407,7 +407,7 @@ public class Manager {
           doValidateFreq(balance, 0, latestOperationTime);
         }
         accountCapsule.setLatestOperationTime(Time.getCurrentMillis());
-        this.getAccountStore().put(accountCapsule.createDbKey(),accountCapsule);
+        this.getAccountStore().put(accountCapsule.createDbKey(), accountCapsule);
       }
     }
   }
@@ -523,6 +523,7 @@ public class Manager {
       }
 
       BlockCapsule newBlock = this.khaosDb.push(block);
+
       //DB don't need lower block
       if (getDynamicPropertiesStore().getLatestBlockHeaderHash() == null) {
         if (newBlock.getNum() != 0) {
@@ -618,9 +619,12 @@ public class Manager {
         this.khaosDb.getBranch(
             getDynamicPropertiesStore().getLatestBlockHeaderHash(),
             forkBlockHash);
-    return branch.getValue().stream()
+
+    LinkedList<BlockId> result = branch.getValue().stream()
         .map(blockCapsule -> blockCapsule.getBlockId())
         .collect(Collectors.toCollection(LinkedList::new));
+    result.add(branch.getValue().peekLast().getParentBlockId());
+    return result;
   }
 
   /**
@@ -698,7 +702,6 @@ public class Manager {
     TransactionResultCapsule ret = new TransactionResultCapsule();
 
     for (Actuator act : actuatorList) {
-
       act.validate();
       act.execute(ret);
       trxCap.setResult(ret);
@@ -866,9 +869,8 @@ public class Manager {
 
   public long getSyncBeginNumber() {
     logger.info("headNumber:" + dynamicPropertiesStore.getLatestBlockHeaderNumber());
-    logger.info(
-        "syncBeginNumber:" + (dynamicPropertiesStore.getLatestBlockHeaderNumber() - revokingStore
-            .size()));
+    logger.info("syncBeginNumber:"
+        + (dynamicPropertiesStore.getLatestBlockHeaderNumber() - revokingStore.size()));
     logger.info("solidBlockNumber:" + dynamicPropertiesStore.getLatestSolidifiedBlockNum());
     return dynamicPropertiesStore.getLatestBlockHeaderNumber() - revokingStore.size();
   }
@@ -956,4 +958,30 @@ public class Manager {
   public void setBlockIndexStore(BlockIndexStore indexStore) {
     this.blockIndexStore = indexStore;
   }
+
+  public void closeAllStore() {
+    System.err.println("******** begin to close db ********");
+    closeOneStore(accountStore);
+    closeOneStore(blockStore);
+    closeOneStore(blockIndexStore);
+    closeOneStore(witnessStore);
+    closeOneStore(witnessScheduleStore);
+    closeOneStore(assetIssueStore);
+    closeOneStore(dynamicPropertiesStore);
+    closeOneStore(transactionStore);
+    closeOneStore(utxoStore);
+    System.err.println("******** end to close db ********");
+  }
+
+  private void closeOneStore(TronDatabase database) {
+    System.err.println("******** begin to close " + database.getName() + " ********");
+    try {
+      database.close();
+    } catch (Exception e) {
+      System.err.println("faild to close  " + database.getName() + ". " + e);
+    } finally {
+      System.err.println("******** end to close " + database.getName() + " ********");
+    }
+  }
+
 }
