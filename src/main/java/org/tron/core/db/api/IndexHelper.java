@@ -12,6 +12,7 @@ import org.tron.core.db.AssetIssueStore;
 import org.tron.core.db.BlockStore;
 import org.tron.core.db.TransactionStore;
 import org.tron.core.db.WitnessStore;
+import org.tron.core.db.api.IndexHelper.Iface;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
@@ -20,7 +21,7 @@ import org.tron.protos.Protocol.Witness;
 
 @Component
 @Slf4j
-public class IndexHelper {
+public class IndexHelper implements Iface {
 
   @Getter @Resource private IndexedCollection<Transaction> transactionIndex;
   @Getter @Resource private IndexedCollection<Block> blockIndex;
@@ -116,4 +117,5 @@ public class IndexHelper {
   public void setAssetIssueStore(AssetIssueStore assetIssueStore) {
     this.assetIssueStore = assetIssueStore;
   }
+
 }
