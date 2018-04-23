@@ -1,17 +1,21 @@
 package org.tron.core.db;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.util.Iterator;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.common.storage.leveldb.LevelDbDataSourceImpl;
 import org.tron.common.utils.Quitable;
 import org.tron.core.config.args.Args;
+import org.tron.core.db.api.IndexHelper;
 import org.tron.core.exception.BadItemException;
 import org.tron.core.exception.ItemNotFoundException;
 
 @Slf4j
-public abstract class TronDatabase<T> implements Quitable {
+public abstract class TronDatabase<T> implements Iterable<T>, Quitable {
 
   protected LevelDbDataSourceImpl dbSource;
+
+  protected IndexHelper indexHelper;
 
   protected TronDatabase(String dbName) {
     dbSource = new LevelDbDataSourceImpl(Args.getInstance().getOutputDirectory(), dbName);
@@ -54,4 +58,8 @@ public abstract class TronDatabase<T> implements Quitable {
     return this.getClass().getSimpleName();
   }
 
+  @Override
+  public Iterator<T> iterator() {
+    throw new UnsupportedOperationException();
+  }
 }
