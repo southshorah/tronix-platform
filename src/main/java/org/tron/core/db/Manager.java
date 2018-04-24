@@ -945,10 +945,11 @@ public class Manager {
   }
 
   private void freezeWitnessPay(WitnessCapsule witnessCapsule, long time) {
+
     FreezeAccountCapsule freezeAccountCapsule = freezeAccountStore
         .get(witnessCapsule.createDbKey());
     if (freezeAccountCapsule == null) {
-      freezeAccountCapsule = new FreezeAccountCapsule(witnessCapsule.createDbKey());
+      freezeAccountCapsule = new FreezeAccountCapsule(witnessCapsule.getAddress());
     }
 
     FreezePolicyContext freezePolicyContext = FreezeStrategy

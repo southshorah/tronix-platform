@@ -23,7 +23,7 @@ public class FreezeAccountCapsule implements ProtoCapsule<FreezeAccount> {
   private static final FreezeStrategy freezeStrategy;
 
   static {
-    freezeStrategy = createFreezeStrategy(StakeStrategyType.None);
+    freezeStrategy = createFreezeStrategy(StakeStrategyType.Linear);
   }
 
 
