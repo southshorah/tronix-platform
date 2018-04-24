@@ -147,6 +147,22 @@ service Wallet {
       body: "*"
     };
   }
+  rpc WithdrawWitnessPay (EmptyMessage) returns (Transaction) {
+    option (google.api.http) = {
+      post: "/wallet/withdrawwitnessPay"
+      body: "*"
+    };
+  }
+  rpc GetFreezeAccount (BytesMessage) returns (FreezeAccount) {
+    option (google.api.http) = {
+      post: "/wallet/getfreezeaccount"
+      body: "*"
+    };
+  }
+
+
+
+
 };
 
 
@@ -201,6 +217,7 @@ service WalletSolidity {
   rpc getTransactionsToThis (Account) returns (NumberMessage) {
 
   }
+
 };
 
 // the api of tron's db
@@ -280,4 +297,9 @@ message BytesMessage {
 message TimeMessage {
   int64 beginInMilliseconds = 1;
   int64 endInMilliseconds = 2;
+}
+message WithdrawWitnessPayMessage {
+  bytes account_address = 1;
+  int64 time = 2;
+  int64 amount = 3;
 }

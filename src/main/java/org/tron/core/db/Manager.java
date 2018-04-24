@@ -932,12 +932,12 @@ public class Manager {
     } catch (BalanceInsufficientException e) {
       logger.debug(e.getMessage(), e);
     }
-    try {
-      adjustBalance(witnessCapsule.getAddress().toByteArray(), WITNESS_PAY_PER_BLOCK);
-//      freezeWitnessPay(witnessCapsule, block.getTimeStamp());
-    } catch (BalanceInsufficientException e) {
-      logger.debug(e.getMessage(), e);
-    }
+//    try {
+//      adjustBalance(witnessCapsule.getAddress().toByteArray(), WITNESS_PAY_PER_BLOCK);
+//    } catch (BalanceInsufficientException e) {
+//      logger.debug(e.getMessage(), e);
+//    }
+    freezeWitnessPay(witnessCapsule, block.getTimeStamp());
 
     logger.debug("updateSignedWitness. witness address:{}, blockNum:{}, totalProduced:{}",
         witnessCapsule.createReadableString(), block.getNum(), witnessCapsule.getTotalProduced());
@@ -977,7 +977,7 @@ public class Manager {
         .withdraw(accountCapsule, withdrawPolicyContext, accountStore, freezeAccountStore);
   }
 
-  private long getAllowedWithdraw(WitnessCapsule witnessCapsule, long time) {
+  private long getAllowedWithdrawWitnessPay(WitnessCapsule witnessCapsule, long time) {
     FreezeAccountCapsule freezeAccountCapsule = freezeAccountStore
         .get(witnessCapsule.createDbKey());
 
