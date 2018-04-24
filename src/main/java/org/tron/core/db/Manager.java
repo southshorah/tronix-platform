@@ -947,6 +947,9 @@ public class Manager {
   private void freezeWitnessPay(WitnessCapsule witnessCapsule, long time) {
     FreezeAccountCapsule freezeAccountCapsule = freezeAccountStore
         .get(witnessCapsule.createDbKey());
+    if (freezeAccountCapsule == null) {
+      freezeAccountCapsule = new FreezeAccountCapsule(witnessCapsule.createDbKey());
+    }
 
     FreezePolicyContext freezePolicyContext = FreezeStrategy
         .createFreezePolicyContext(time, WITNESS_PAY_PER_BLOCK);
