@@ -964,30 +964,36 @@ public class Manager {
 
   }
 
-  private void withdrawWitnessPay(WitnessCapsule witnessCapsule, long time, long amount) {
+  public void withdrawWitnessPay(byte[] address, long time, long amount) {
     FreezeAccountCapsule freezeAccountCapsule = freezeAccountStore
-        .get(witnessCapsule.createDbKey());
+        .get(address);
 
     WithdrawPolicyContext withdrawPolicyContext = FreezeStrategy
         .createWithdrawPolicyContext(time, amount);
 
-    if (!freezeAccountCapsule.isWithdrawAllowed(withdrawPolicyContext)) {
-      throw new RuntimeException("withdrawWitnessPay, Check error");
-    }
-
-    AccountCapsule accountCapsule = getAccountStore().get(witnessCapsule.createDbKey());
+    AccountCapsule accountCapsule = getAccountStore().get(address);
     freezeAccountCapsule
         .withdraw(accountCapsule, withdrawPolicyContext, accountStore, freezeAccountStore);
   }
 
-  private long getAllowedWithdrawWitnessPay(WitnessCapsule witnessCapsule, long time) {
+  public long getAllowedWithdrawWitnessPay(byte[] address, long time) {
     FreezeAccountCapsule freezeAccountCapsule = freezeAccountStore
-        .get(witnessCapsule.createDbKey());
+        .get(address);
 
     WithdrawPolicyContext withdrawPolicyContext = FreezeStrategy
         .createWithdrawPolicyContext(time, 0L);
 
     return freezeAccountCapsule.getAllowedWithdraw(withdrawPolicyContext);
+  }
+
+  public boolean isWithdrawAllowed(byte[] address, long now, long amount) {
+    FreezeAccountCapsule freezeAccountCapsule = freezeAccountStore
+        .get(address);
+
+    WithdrawPolicyContext withdrawPolicyContext = FreezeStrategy
+        .createWithdrawPolicyContext(now, amount);
+
+    return freezeAccountCapsule.isWithdrawAllowed(withdrawPolicyContext);
   }
 
   public void updateMaintenanceState(boolean needMaint) {

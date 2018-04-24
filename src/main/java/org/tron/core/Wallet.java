@@ -52,10 +52,12 @@ import org.tron.protos.Contract.ParticipateAssetIssueContract;
 import org.tron.protos.Contract.TransferAssetContract;
 import org.tron.protos.Contract.TransferContract;
 import org.tron.protos.Contract.VoteWitnessContract;
+import org.tron.protos.Contract.WithdrawWitnessContract;
 import org.tron.protos.Contract.WitnessCreateContract;
 import org.tron.protos.Contract.WitnessUpdateContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.FreezeAccount;
 import org.tron.protos.Protocol.Transaction;
 
 
@@ -205,6 +207,7 @@ public class Wallet {
     return new TransactionCapsule(contract, accountStore).getInstance();
   }
 
+
   /**
    * Broadcast a transaction.
    */
@@ -248,6 +251,10 @@ public class Wallet {
 
   public Transaction createTransaction(WitnessUpdateContract witnessUpdateContract) {
     return new TransactionCapsule(witnessUpdateContract).getInstance();
+  }
+
+  public Transaction createTransaction(WithdrawWitnessContract contract) {
+    return new TransactionCapsule(contract).getInstance();
   }
 
   public Block getNowBlock() {
@@ -334,4 +341,10 @@ public class Wallet {
         .setNum(dbManager.getTransactionStore().getTotalTransactions());
     return builder.build();
   }
+
+  public FreezeAccount getFreezeAccount(ByteString address) {
+
+    return dbManager.getFreezeAccountStore().get(address.toByteArray()).getInstance();
+  }
+
 }

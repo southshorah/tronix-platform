@@ -147,7 +147,7 @@ service Wallet {
       body: "*"
     };
   }
-  rpc WithdrawWitnessPay (EmptyMessage) returns (Transaction) {
+  rpc WithdrawWitnessPay (WithdrawWitnessContract) returns (Transaction) {
     option (google.api.http) = {
       post: "/wallet/withdrawwitnessPay"
       body: "*"
@@ -297,9 +297,4 @@ message BytesMessage {
 message TimeMessage {
   int64 beginInMilliseconds = 1;
   int64 endInMilliseconds = 2;
-}
-message WithdrawWitnessPayMessage {
-  bytes account_address = 1;
-  int64 time = 2;
-  int64 amount = 3;
 }

@@ -39,6 +39,7 @@ import org.tron.protos.Contract.AccountCreateContract;
 import org.tron.protos.Contract.ParticipateAssetIssueContract;
 import org.tron.protos.Contract.TransferAssetContract;
 import org.tron.protos.Contract.TransferContract;
+import org.tron.protos.Contract.WithdrawWitnessContract;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.Protocol.Transaction.TransactionType;
@@ -144,6 +145,9 @@ public class TransactionCapsule implements ProtoCapsule<Transaction> {
     createTransaction(assetIssueContract, ContractType.AssetIssueContract);
   }
 
+  public TransactionCapsule(WithdrawWitnessContract contract) {
+    createTransaction(contract, ContractType.WithdrawWitnessContract);
+  }
 
   public TransactionCapsule(com.google.protobuf.Message message, ContractType contractType) {
     Transaction.raw.Builder transactionBuilder = Transaction.raw.newBuilder().setType(
@@ -240,6 +244,9 @@ public class TransactionCapsule implements ProtoCapsule<Transaction> {
           break;
         case ParticipateAssetIssueContract:
           owner = contractParameter.unpack(ParticipateAssetIssueContract.class).getOwnerAddress();
+          break;
+        case WithdrawWitnessContract:
+          owner = contractParameter.unpack(WithdrawWitnessContract.class).getAccountAddress();
           break;
         // todo add other contract
 

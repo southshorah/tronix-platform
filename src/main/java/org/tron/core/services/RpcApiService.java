@@ -42,10 +42,12 @@ import org.tron.protos.Contract.ParticipateAssetIssueContract;
 import org.tron.protos.Contract.TransferAssetContract;
 import org.tron.protos.Contract.TransferContract;
 import org.tron.protos.Contract.VoteWitnessContract;
+import org.tron.protos.Contract.WithdrawWitnessContract;
 import org.tron.protos.Contract.WitnessCreateContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.DynamicProperties;
+import org.tron.protos.Protocol.FreezeAccount;
 import org.tron.protos.Protocol.Transaction;
 
 
@@ -420,6 +422,31 @@ public class RpcApiService implements Service {
       responseObserver.onCompleted();
     }
 
+    @Override
+    public void withdrawWitnessPay(WithdrawWitnessContract request,
+        StreamObserver<Transaction> responseObserver) {
+      ByteString address = request.getAccountAddress();
+
+      if (address != null) {
+        responseObserver.onNext(wallet.createTransaction(request));
+      } else {
+        responseObserver.onNext(null);
+      }
+      responseObserver.onCompleted();
+    }
+
+    @Override
+    public void getFreezeAccount(BytesMessage request,
+        StreamObserver<FreezeAccount> responseObserver) {
+      ByteString address = request.getValue();
+
+      if (address != null) {
+        responseObserver.onNext(wallet.getFreezeAccount(address));
+      } else {
+        responseObserver.onNext(null);
+      }
+      responseObserver.onCompleted();
+    }
   }
 
   @Override
