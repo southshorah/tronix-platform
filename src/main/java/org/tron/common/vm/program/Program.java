@@ -62,14 +62,7 @@ public class Program {
 
     private static final Logger logger = LoggerFactory.getLogger("VM");
 
-    /**
-     * This attribute defines the number of recursive calls allowed in the EVM
-     * Note: For the JVM to reach this level without a StackOverflow exception,
-     * ethereumj may need to be started with a JVM argument to increase
-     * the stack size. For example: -Xss10m
-     */
     private static final int MAX_DEPTH = 1024;
-
     //Max size for stack checks
     private static final int MAX_STACKSIZE = 1024;
 
@@ -141,14 +134,17 @@ public class Program {
             if (codeHash != null && commonConfig.precompileSource() != null) {
                 programPrecompile = commonConfig.precompileSource().get(codeHash);
             }
+            */
             if (programPrecompile == null) {
                 programPrecompile = ProgramPrecompile.compile(ops);
 
+                /*
                 if (codeHash != null && commonConfig.precompileSource() != null) {
                     commonConfig.precompileSource().put(codeHash, programPrecompile);
                 }
+                */
             }
-            */
+
         }
         return programPrecompile;
     }
@@ -460,9 +456,9 @@ public class Program {
 
 
         // [5] COOK THE INVOKE AND EXECUTE
-        InternalTransaction internalTx = addInternalTx(getDropLimit(), senderAddress, null, endowment, programCode, "create");
+        InternalTransaction internalTx = addInternalTx(getDroplimit(), senderAddress, null, endowment, programCode, "create");
         ProgramInvoke programInvoke = programInvokeFactory.createProgramInvoke(
-                this, new DataWord(newAddress), getOwnerAddress(), value, gasLimit,
+                this, new DataWord(newAddress), getOwnerAddress(), value,
                 newBalance, null, track, this.invoke.getBlockStore(), false, byTestingSuite());
 
         ProgramResult result = ProgramResult.createEmpty();
@@ -483,7 +479,7 @@ public class Program {
 
         //long storageCost = getLength(code) * getBlockchainConfig().getGasCost().getCREATE_DATA();
         long storageCost = getLength(code) * DropCost.getInstance().getCREATE_DATA();
-        long afterSpend = programInvoke.getDropslimit().longValue() - storageCost - result.getDropUsed();
+        long afterSpend = programInvoke.getDroplimit().longValue() - storageCost - result.getDropUsed();
         if (afterSpend < 0) {
             if (!tronConfig.getConstants().createEmptyContractOnOOG()) {
                 result.setException(Program.Exception.notEnoughSpendingGas("No gas to return just created contract",
@@ -495,7 +491,7 @@ public class Program {
             result.setException(Program.Exception.notEnoughSpendingGas("Contract size too large: " + getLength(result.getHReturn()),
                     storageCost, this));
         } else if (!result.isRevert()){
-            result.spendGas(storageCost);
+            result.spendDrop(storageCost);
             track.saveCode(newAddress, code);
         }
 
@@ -592,7 +588,7 @@ public class Program {
         }
 
         // CREATE CALL INTERNAL TRANSACTION
-        InternalTransaction internalTx = addInternalTx( getDropLimit(), senderAddress, contextAddress, endowment, data, "call");
+        InternalTransaction internalTx = addInternalTx( getDroplimit(), senderAddress, contextAddress, endowment, data, "call");
 
         ProgramResult result = null;
         if (isNotEmpty(programCode)) {
@@ -600,7 +596,7 @@ public class Program {
                     this, new DataWord(contextAddress),
                     msg.getType().callIsDelegate() ? getCallerAddress() : getOwnerAddress(),
                     msg.getType().callIsDelegate() ? getCallValue() : msg.getEndowment(),
-                    msg.getGas(), contextBalance, data, track, this.invoke.getBlockStore(),
+                    contextBalance, data, track, this.invoke.getBlockStore(),
                     msg.getType().callIsStatic() || isStaticCall(), byTestingSuite());
 
             VM vm = new VM(config);
@@ -668,15 +664,15 @@ public class Program {
         }
     }
 
-    public void spendGas(long gasValue, String cause) {
-        if (getDropLong() < gasValue) {
-            throw Program.Exception.notEnoughSpendingGas(cause, gasValue, this);
+    public void spendDrop(long dropValue, String cause) {
+        if (getDroplimitLong() < dropValue) {
+            throw Program.Exception.notEnoughSpendingGas(cause, dropValue, this);
         }
-        getResult().spendGas(gasValue);
+        getResult().spendDrop(dropValue);
     }
 
     public void spendAllGas() {
-        spendGas(getDrop().longValue(), "Spending all remaining");
+        spendDrop(getDroplimit().longValue(), "Spending all remaining");
     }
 
     public void refundGas(long gasValue, String cause) {
@@ -694,14 +690,19 @@ public class Program {
     }
 
     public void storageSave(DataWord word1, DataWord word2) {
-        storageSave(word1.getData(), word2.getData());
+        //storageSave(word1.getData(), word2.getData());
+        DataWord keyWord = word1.clone();
+        DataWord valWord = word2.clone();
+        getStorage().addStorageRow(getOwnerAddress().getLast20Bytes(), keyWord, valWord);
     }
 
+    /*
     public void storageSave(byte[] key, byte[] val) {
         DataWord keyWord = new DataWord(key);
         DataWord valWord = new DataWord(val);
         getStorage().addStorageRow(getOwnerAddress().getLast20Bytes(), keyWord, valWord);
     }
+    */
 
     public byte[] getCode() {
         return ops;
@@ -750,12 +751,12 @@ public class Program {
         return new DataWord(1);
     }
 
-    public long getDropLong() {
-        return invoke.getDropslimitLong() - getResult().getDropUsed();
+    public long getDroplimitLong() {
+        return invoke.getDroplimitLong() - getResult().getDropUsed();
     }
 
-    public DataWord getDrop() {
-        return new DataWord(invoke.getDropslimitLong() - getResult().getDropUsed());
+    public DataWord getDroplimit() {
+        return new DataWord(invoke.getDroplimitLong() - getResult().getDropUsed());
     }
 
     public DataWord getCallValue() {
@@ -815,10 +816,6 @@ public class Program {
 
     public DataWord getDifficulty() {
         return null; //invoke.getDifficulty().clone();
-    }
-
-    public DataWord getDropLimit() {
-        return invoke.getDropslimit().clone();
     }
 
     public boolean isStaticCall() {
@@ -907,8 +904,8 @@ public class Program {
             logger.trace(" -- STORAGE -- {}\n", storageData);
             logger.trace("\n  Spent Gas: [{}]/[{}]\n  Left Gas:  [{}]\n",
                     getResult().getDropUsed(),
-                    invoke.getDropslimit().longValue(),
-                    getDrop().longValue());
+                    invoke.getDroplimit().longValue(),
+                    getDroplimit().longValue());
 
             StringBuilder globalOutput = new StringBuilder("\n");
             if (stackData.length() > 0) stackData.append("\n");
@@ -939,7 +936,7 @@ public class Program {
 
     public void saveOpTrace() {
         if (this.pc < ops.length) {
-            trace.addOp(ops[pc], pc, getCallDeep(), getDrop(), traceListener.resetActions());
+            trace.addOp(ops[pc], pc, getCallDeep(), getDroplimit(), traceListener.resetActions());
         }
     }
 
@@ -1277,7 +1274,7 @@ public class Program {
 
         public static OutOfGasException notEnoughSpendingGas(String cause, long gasValue, Program program) {
             return new OutOfGasException("Not enough gas for '%s' cause spending: invokeGas[%d], gas[%d], usedGas[%d];",
-                    cause, program.invoke.getDropslimit().longValue(), gasValue, program.getResult().getDropUsed());
+                    cause, program.invoke.getDroplimit().longValue(), gasValue, program.getResult().getDropUsed());
         }
 
         public static OutOfGasException gasOverflow(BigInteger actualGas, BigInteger gasLimit) {

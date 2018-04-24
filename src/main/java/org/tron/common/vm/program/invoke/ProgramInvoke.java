@@ -53,9 +53,9 @@ public interface ProgramInvoke {
 
     DataWord getDifficulty();
 
-    DataWord getDropslimit();
+    DataWord getDroplimit();
 
-    long getDropslimitLong();
+    long getDroplimitLong();
 
     boolean byTransaction();
 

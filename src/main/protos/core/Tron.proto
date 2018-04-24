@@ -97,8 +97,11 @@ message Transaction {
       SUCESS = 0;
       FAILED = 1;
     }
+
     int64 fee = 1;
     code ret = 2;
+    bytes constant_result = 3;
+
   }
 
   message raw {

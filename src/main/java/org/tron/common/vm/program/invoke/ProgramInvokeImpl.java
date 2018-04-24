@@ -25,51 +25,32 @@ import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Map;
 
-/**
- * @author Roman Mandeleil
- * @since 03.06.2014
- */
 public class ProgramInvokeImpl implements ProgramInvoke {
 
     private BlockStore blockStore;
-    /**
-     * TRANSACTION  env **
-     */
+    /* TRANSACTION  env*/
     private final DataWord address;
-    private final DataWord origin, caller,
-            balance, callValue;
-    // private final long gasLong;
-    private DataWord drops;
-
+    private final DataWord origin, caller, balance, callValue;
     byte[] msgData;
 
-    /**
-     * BLOCK  env **
-     */
-    private final DataWord prevHash, coinbase, timestamp,
-            number;
-
-    private Map<DataWord, DataWord> storage;
+     /* BLOCK  env **/
+    private final DataWord prevHash, coinbase, timestamp, number;
 
     private final Repository repository;
     private boolean byTransaction = true;
     private boolean byTestingSuite = false;
     private int callDeep = 0;
     private boolean isStaticCall = false;
+    private DataWord dropLimit;
 
-    public ProgramInvokeImpl(DataWord address, DataWord origin, DataWord caller, DataWord balance,
-                             DataWord gasPrice, DataWord gas, DataWord callValue, byte[] msgData,
-                             DataWord lastHash, DataWord coinbase, DataWord timestamp, DataWord number, DataWord
-                                     difficulty,
-                             DataWord gaslimit, Repository repository, int callDeep, BlockStore blockStore,
+    public ProgramInvokeImpl(DataWord address, DataWord origin, DataWord caller, DataWord balance, DataWord callValue, byte[] msgData,
+                             DataWord lastHash, DataWord coinbase, DataWord timestamp, DataWord number, DataWord difficulty,
+                             Repository repository, int callDeep, BlockStore blockStore,
                              boolean isStaticCall, boolean byTestingSuite) {
-
-        // Transaction env
         this.address = address;
         this.origin = origin;
         this.caller = caller;
         this.balance = balance;
-        // this.gasLong = this.gas.longValueSafe();
         this.callValue = callValue;
         this.msgData = msgData;
 
@@ -85,40 +66,17 @@ public class ProgramInvokeImpl implements ProgramInvoke {
         this.blockStore = blockStore;
         this.isStaticCall = isStaticCall;
         this.byTestingSuite = byTestingSuite;
+
+        this.dropLimit = balance.clone();
     }
 
     public ProgramInvokeImpl(byte[] address, byte[] origin, byte[] caller, long balance,
-                             byte[] gasPrice, byte[] gas, byte[] callValue, byte[] msgData,
+                             byte[] callValue, byte[] msgData,
                              byte[] lastHash, byte[] coinbase, long timestamp, long number,
                              Repository repository, BlockStore blockStore, boolean byTestingSuite) {
-        this(address, origin, caller, balance, gasPrice, gas, callValue, msgData, lastHash, coinbase,
+        this(address, origin, caller, balance, callValue, msgData, lastHash, coinbase,
                 timestamp, number, repository, blockStore);
         this.byTestingSuite = byTestingSuite;
-    }
-
-
-    public ProgramInvokeImpl(byte[] address, byte[] origin, byte[] caller, long balance,
-                             byte[] gasPrice, byte[] gas, byte[] callValue, byte[] msgData,
-                             byte[] lastHash, byte[] coinbase, long timestamp, long number,
-                             Repository repository, BlockStore blockStore) {
-
-        // Transaction env
-        this.address = new DataWord(address);
-        this.origin = new DataWord(origin);
-        this.caller = new DataWord(caller);
-        this.balance = new DataWord(balance);
-        this.callValue = new DataWord(callValue);
-        this.msgData = msgData;
-        this.drops = new DataWord(balance);
-
-        // last Block env
-        this.prevHash = new DataWord(lastHash);
-        this.coinbase = new DataWord(coinbase);
-        this.timestamp = new DataWord(timestamp);
-        this.number = new DataWord(number);
-
-        this.repository = repository;
-        this.blockStore = blockStore;
     }
 
     public ProgramInvokeImpl(byte[] address, byte[] origin, byte[] caller, long balance,
@@ -141,6 +99,8 @@ public class ProgramInvokeImpl implements ProgramInvoke {
 
         this.repository = repository;
         this.blockStore = blockStore;
+
+        this.dropLimit = new DataWord(balance);
     }
 
     /*           ADDRESS op         */
@@ -246,18 +206,23 @@ public class ProgramInvokeImpl implements ProgramInvoke {
     }
 
     /*     GASLIMIT op    */
-    public DataWord getDropslimit() {
-        return drops; //gaslimit;
+    @Override
+    public DataWord getDroplimit() {
+        return dropLimit; //gaslimit;
     }
 
-    public long getDropslimitLong() {
-        return drops.longValue();
+    @Override
+    public long getDroplimitLong() {
+        return dropLimit.longValue();
     }
+
 
     /*  Storage */
+    /*
     public Map<DataWord, DataWord> getStorage() {
         return storage;
     }
+    */
 
     public Repository getRepository() {
         return repository;
@@ -311,7 +276,7 @@ public class ProgramInvokeImpl implements ProgramInvoke {
         if (origin != null ? !origin.equals(that.origin) : that.origin != null) return false;
         if (prevHash != null ? !prevHash.equals(that.prevHash) : that.prevHash != null) return false;
         if (repository != null ? !repository.equals(that.repository) : that.repository != null) return false;
-        if (storage != null ? !storage.equals(that.storage) : that.storage != null) return false;
+        //if (storage != null ? !storage.equals(that.storage) : that.storage != null) return false;
         if (timestamp != null ? !timestamp.equals(that.timestamp) : that.timestamp != null) return false;
 
         return true;
@@ -330,7 +295,7 @@ public class ProgramInvokeImpl implements ProgramInvoke {
                 ", coinbase=" + coinbase +
                 ", timestamp=" + timestamp +
                 ", number=" + number +
-                ", storage=" + storage +
+                //", storage=" + storage +
                 ", repository=" + repository +
                 ", byTransaction=" + byTransaction +
                 ", byTestingSuite=" + byTestingSuite +

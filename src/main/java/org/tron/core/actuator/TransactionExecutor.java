@@ -31,6 +31,7 @@ import org.tron.common.vm.PrecompiledContracts;
 import org.tron.common.vm.VM;
 import org.tron.common.vm.program.InternalTransaction;
 import org.tron.common.vm.program.Program;
+import org.tron.common.vm.program.ProgramPrecompile;
 import org.tron.common.vm.program.ProgramResult;
 import org.tron.common.vm.program.invoke.ProgramInvoke;
 import org.tron.common.vm.program.invoke.ProgramInvokeFactory;
@@ -92,7 +93,7 @@ public class TransactionExecutor {
     PrecompiledContracts.PrecompiledContract    precompiledContract;
     List<LogInfo> logs = null;
     private ByteArraySet touchedAccounts = new ByteArraySet();
-    boolean localCall = false;
+    boolean constantCall = false;
 
 
     private TrxType trxType = TRX_UNKNOWN_TYPE;
@@ -149,7 +150,7 @@ public class TransactionExecutor {
      * set readyToExecute = true
      */
     public void init() {
-        if (localCall) {
+        if (constantCall) {
             readyToExecute = true;
             return;
         }
@@ -226,7 +227,8 @@ public class TransactionExecutor {
                     currentBlock, track, track.getBlockStore());
             this.vm = new VM(config);
             // this.program = new Program(track.getCodeHash(targetAddress), code, programInvoke, tx, config).withCommonConfig(commonConfig);
-            this.program = new Program(track.getCodeHash(contractAddress), code, programInvoke, new InternalTransaction(tx), config).withCommonConfig(commonConfig);
+            this.program = new Program(track.getCodeHash(contractAddress), code, programInvoke,
+                    new InternalTransaction(tx), config).withCommonConfig(commonConfig);
         }
 
 
@@ -285,7 +287,7 @@ public class TransactionExecutor {
         // Store the account, code and contract
         this.track.createAccount(newContractAddress, Protocol.AccountType.Contract);
         this.track.saveContract(newContractAddress, new ContractCapsule(tx));
-        this.track.saveCode(newContractAddress, code);
+        this.track.saveCode(newContractAddress, ProgramPrecompile.getCode(code));
     }
 
     public void go() {
@@ -430,8 +432,8 @@ public class TransactionExecutor {
         return null;
     }
 
-    public TransactionExecutor setLocalCall(boolean localCall) {
-        this.localCall = localCall;
+    public TransactionExecutor setConstantCall(boolean constantCall) {
+        this.constantCall = constantCall;
         return this;
     }
 

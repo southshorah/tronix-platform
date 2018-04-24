@@ -105,13 +105,7 @@ public class ProgramInvokeFactoryImpl implements ProgramInvokeFactory {
 
             /***         BALANCE op       ***/
             // byte[] balance = repository.getBalance(address).toByteArray();
-            balance = repository.getBalance(address);
-
-            /***         GASPRICE op       ***/
-            //byte[] gasPrice = tx.getGasPrice();
-
-            /*** GAS op ***/
-            //byte[] gas = tx.getGasLimit();
+            balance = repository.getBalance(caller);
 
             /***        CALLVALUE op      ***/
             // byte[] callValue = nullToEmpty(tx.getValue());
@@ -157,18 +151,14 @@ public class ProgramInvokeFactoryImpl implements ProgramInvokeFactory {
      */
     @Override
     public ProgramInvoke createProgramInvoke(Program program, DataWord toAddress, DataWord callerAddress,
-                                             DataWord inValue, DataWord inGas,
-                                             long balanceInt, byte[] dataIn,
+                                             DataWord inValue, long balanceInt, byte[] dataIn,
                                              Repository repository, BlockStore blockStore,
                                              boolean isStaticCall, boolean byTestingSuite) {
 
         DataWord address = toAddress;
         DataWord origin = program.getOriginAddress();
         DataWord caller = callerAddress;
-
         DataWord balance = new DataWord(balanceInt);
-        DataWord gasPrice = program.getGasPrice();
-        DataWord gas = inGas;
         DataWord callValue = inValue;
 
         byte[] data = dataIn;
@@ -177,10 +167,10 @@ public class ProgramInvokeFactoryImpl implements ProgramInvokeFactory {
         DataWord timestamp = program.getTimestamp();
         DataWord number = program.getNumber();
         DataWord difficulty = program.getDifficulty();
-        DataWord gasLimit = program.getGasLimit();
+        DataWord dropLimit = program.getDroplimit();
 
-        return new ProgramInvokeImpl(address, origin, caller, balance, gasPrice, gas, callValue,
-                data, lastHash, coinbase, timestamp, number, difficulty, gasLimit,
+        return new ProgramInvokeImpl(address, origin, caller, balance, callValue,
+                data, lastHash, coinbase, timestamp, number, difficulty,
                 repository, program.getCallDeep() + 1, blockStore, isStaticCall, byTestingSuite);
     }
 }

@@ -41,7 +41,7 @@ public class ProgramInvokeMockImpl implements ProgramInvoke {
     private final byte[] contractAddress = Hex.decode("471fd3ad3e9eeadeec4608b92d16ce6b500704cc");
 
     // default for most tests. This can be overwritten by the test
-    private long gasLimit = 1000000;
+    private long dropLimit = 1000000;
 
     public ProgramInvokeMockImpl(byte[] msgDataRaw) {
         this();
@@ -108,22 +108,25 @@ public class ProgramInvokeMockImpl implements ProgramInvoke {
     /*           GAS op       */
     public DataWord getGas() {
 
-        return new DataWord(gasLimit);
-    }
-
-    @Override
-    public long getGasLong() {
-        return gasLimit;
+        return new DataWord(dropLimit);
     }
 
     public void setGas(long gasLimit) {
-        this.gasLimit = gasLimit;
+        this.dropLimit = gasLimit;
     }
 
     /*          CALLVALUE op    */
     public DataWord getCallValue() {
         byte[] balance = Hex.decode("0DE0B6B3A7640000");
         return new DataWord(balance);
+    }
+
+    public DataWord getDroplimit() {
+        return null;
+    }
+
+    public long getDroplimitLong() {
+        return dropLimit;
     }
 
     /*****************/
@@ -202,15 +205,6 @@ public class ProgramInvokeMockImpl implements ProgramInvoke {
     public DataWord getDifficulty() {
         byte[] difficulty = Hex.decode("3ED290");
         return new DataWord(difficulty);
-    }
-
-    @Override
-    public DataWord getGaslimit() {
-        return new DataWord(gasLimit);
-    }
-
-    public void setGasLimit(long gasLimit) {
-        this.gasLimit = gasLimit;
     }
 
     public void setOwnerAddress(byte[] ownerAddress) {

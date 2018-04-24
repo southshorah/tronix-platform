@@ -34,15 +34,16 @@ import org.tron.api.GrpcAPI.NumberMessage.Builder;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.application.Application;
 import org.tron.common.crypto.ECKey;
+import org.tron.common.crypto.Hash;
 import org.tron.common.overlay.message.Message;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Sha256Hash;
 import org.tron.common.utils.Utils;
+import org.tron.common.vm.program.ProgramResult;
+import org.tron.core.actuator.TransactionExecutionSummary;
+import org.tron.core.actuator.TransactionExecutor;
 import org.tron.core.capsule.*;
-import org.tron.core.db.AccountStore;
-import org.tron.core.db.BlockStore;
-import org.tron.core.db.Manager;
-import org.tron.core.db.UtxoStore;
+import org.tron.core.db.*;
 import org.tron.core.exception.BadItemException;
 import org.tron.core.exception.ContractExeException;
 import org.tron.core.exception.ContractValidateException;
@@ -337,14 +338,113 @@ public class Wallet {
   }
 
   public Transaction createContarct(ContractCreationContract contractCreationContract) {
-    logger.info("---- Jorge createContarct -----");
     return new TransactionCapsule(contractCreationContract, Transaction.Contract.ContractType.ContractCreationContract)
             .getInstance();
   }
 
+  /**
+   *
+   * @param data
+   * @return
+   */
+  private byte[] getSelector(byte[] data) {
+    if (data == null ||
+            data.length < 4) {
+      return null;
+    }
+
+    byte[] ret = new byte[4];
+    System.arraycopy(data, 0, ret, 0, 4);
+    return ret;
+  }
+
+  /**
+   *
+   * @param abi
+   * @param selector
+   * @return
+   * @throws Exception
+   */
+  private boolean isConstant(ContractCreationContract.ABI abi, byte[] selector) throws Exception{
+    if (selector == null || selector.length != 4) {
+      throw new Exception("Selector's length or selector itself is invalid");
+    }
+
+    for (int i = 0; i < abi.getEntrysCount(); i++) {
+      ContractCreationContract.ABI.Entry entry = abi.getEntrys(i);
+      if (entry.getType() != ContractCreationContract.ABI.Entry.EntryType.Function) {
+        continue;
+      }
+
+      int inputCount = entry.getInputsCount();
+      StringBuffer sb = new StringBuffer();
+      sb.append(entry.getName().toString());
+      sb.append("(");
+      for (int k = 0; k < inputCount; k++) {
+        ContractCreationContract.ABI.Entry.Param param = entry.getInputs(k);
+        sb.append(param.getType().toString());
+        if (k + 1 < inputCount) {
+          sb.append(",");
+        }
+      }
+      sb.append(")");
+
+      byte[] funcSelector = new byte[4];
+      System.arraycopy(Hash.sha3(sb.toString().getBytes()), 0, funcSelector, 0, 4);
+      if (funcSelector.equals(selector)) {
+        return true;
+      }
+    }
+
+    throw new Exception("There is no the selector!");
+  }
+
+  /**
+   *
+   * @param contractCallContract
+   * @return
+   */
   public Transaction callContract(Contract.ContractCallContract contractCallContract) {
-    return new TransactionCapsule(contractCallContract, Transaction.Contract.ContractType.ContractCallContract)
-            .getInstance();
+    ContractStore contractStore = dbManager.getContractStore();
+    byte[] contractAddress = contractCallContract.getContractAddress().toByteArray();
+    ContractCreationContract.ABI abi = contractStore.getABI(contractAddress);
+    if (abi == null) {
+      return null;
+    }
+
+    try {
+      byte[] selector = getSelector(contractCallContract.getData().toByteArray());
+      if (selector == null) {
+        return null;
+      }
+
+      Transaction trx = null;
+      if (!isConstant(abi, selector)) {
+        trx = new TransactionCapsule(contractCallContract, Transaction.Contract.ContractType.ContractCallContract)
+                .getInstance();
+      } else {
+        TransactionCapsule trxCap = new TransactionCapsule(contractCallContract, Transaction.Contract.ContractType.ContractCallContract);
+
+        TransactionExecutor executor = new TransactionExecutor(trxCap, trxCap.getInstance(), null,
+                dbManager.getRepositoryImpl(), dbManager.getProgramInvokeFactory(), null).setConstantCall(true);
+        //executor.withCommonConfig()
+        executor.init();
+        executor.execute();
+        executor.go();
+
+        ProgramResult programResult = executor.getResult();
+        //TransactionExecutionSummary summary = executor.finalization();
+        Transaction.Result.Builder builder = Transaction.Result.newBuilder();
+        builder.setConstantResult(ByteString.copyFrom(programResult.getHReturn()));
+        trx = trxCap.getInstance();
+        trx = trx.toBuilder().addRet(builder.build()).build();
+      }
+
+      return trx;
+    } catch (Exception e) {
+      logger.error(e.getMessage());
+      return null;
+    }
   }
 
   public ContractCreationContract getContract(GrpcAPI.BytesMessage bytesMessage) {

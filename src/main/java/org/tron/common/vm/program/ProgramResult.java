@@ -34,7 +34,7 @@ public class ProgramResult {
      */
     private List<CallCreate> callCreateList;
 
-    public void spendGas(long drops) {
+    public void spendDrop(long drops) {
         dropUsed += drops;
     }
 

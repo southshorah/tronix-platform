@@ -145,7 +145,17 @@ public class RepositoryImpl implements Repository, org.tron.core.facade.Reposito
         getOrCreateAccountCapsule(addr, Protocol.AccountType.Contract);
 
         StorageCapsule storageCapsule = this.getStorageStore().get(addr);
+        if (storageCapsule == null) {
+            // create one
+            Protocol.StorageItem.Builder builder = Protocol.StorageItem.newBuilder();
+            builder.setContractAddress(ByteString.copyFrom(addr));
+
+            Protocol.StorageItem storageItem = builder.build();
+            storageCapsule = new StorageCapsule(storageItem);
+        }
+
         storageCapsule.put(key, value);
+        this.getStorageStore().put(addr, storageCapsule);
     }
 
     @Override

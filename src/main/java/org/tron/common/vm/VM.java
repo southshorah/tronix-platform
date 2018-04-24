@@ -22,7 +22,7 @@ import static org.tron.common.vm.OpCode.*;
 
 public class VM {
 
-    private static final Logger logger = LoggerFactory.getLogger("VM");
+    private static final Logger logger = LoggerFactory.getLogger("TronVM");
     private static final Logger dumpLogger = LoggerFactory.getLogger("dump");
     private static BigInteger _32_ = BigInteger.valueOf(32);
     private static final String logString = "{}    Op: [{}]  Gas: [{}] Deep: [{}]  Hint: [{}]";
@@ -34,8 +34,6 @@ public class VM {
 
     /* Keeps track of the number of steps performed in this VM */
     private int vmCounter = 0;
-
-    private static VMHook vmHook;
     private boolean vmTrace;
     // private long dumpBlock;
 
@@ -53,29 +51,29 @@ public class VM {
     }
 
     private long calcMemDrop(DropCost dropCosts, long oldMemSize, BigInteger newMemSize, long copySize) {
-        long gasCost = 0;
+        long dropConsume = 0;
 
         // Avoid overflows
         if (newMemSize.compareTo(MAX_MEM_SIZE) == 1) {
             throw Program.Exception.gasOverflow(newMemSize, MAX_MEM_SIZE);
         }
 
-        // memory gas calc
+        // memory drop consume calc
         long memoryUsage = (newMemSize.longValue() + 31) / 32 * 32;
         if (memoryUsage > oldMemSize) {
             long memWords = (memoryUsage / 32);
             long memWordsOld = (oldMemSize / 32);
             //TODO #POC9 c_quadCoeffDiv = 512, this should be a constant, not magic number
-            long memGas = ( dropCosts.getMEMORY() * memWords + memWords * memWords / 512)
+            long memDrop = ( dropCosts.getMEMORY() * memWords + memWords * memWords / 512)
                     - (dropCosts.getMEMORY() * memWordsOld + memWordsOld * memWordsOld / 512);
-            gasCost += memGas;
+            dropConsume += memDrop;
         }
 
         if (copySize > 0) {
-            long copyGas = dropCosts.getCOPY_GAS() * ((copySize + 31) / 32);
-            gasCost += copyGas;
+            long copyDrop = dropCosts.getCOPY_GAS() * ((copySize + 31) / 32);
+            dropConsume += copyDrop;
         }
-        return gasCost;
+        return dropConsume;
     }
 
     private boolean isDeadAccount(Program program, byte[] addr) {
@@ -84,25 +82,18 @@ public class VM {
     }
 
     public void step(Program program) {
-
         if (vmTrace) {
             program.saveOpTrace();
         }
 
         try {
             TronConfig tronConfig = program.getBlockchainConfig();
-
             OpCode op = OpCode.code(program.getCurrentOp());
-            if (op == null) {
-                throw Program.Exception.invalidOpCode(program.getCurrentOp());
-            }
-
+            if (op == null) throw Program.Exception.invalidOpCode(program.getCurrentOp());
             switch (op) {
                 case DELEGATECALL:
-                    if (!tronConfig.getConstants().hasDelegateCallOpcode()) {
-                        // opcode since Homestead release only
-                        throw Program.Exception.invalidOpCode(program.getCurrentOp());
-                    }
+                    // opcode since Homestead release only
+                    if (!tronConfig.getConstants().hasDelegateCallOpcode()) throw Program.Exception.invalidOpCode(program.getCurrentOp());
                     break;
                 case REVERT:
                     //if (!tronConfig.eip206()) {
@@ -132,22 +123,10 @@ public class VM {
             String hint = "";
             long callGas = 0, memWords = 0; // parameters for logging
             long dropCost = op.getTier().asInt();
-            long gasBefore = program.getDropLong();
+            long dropBefore = program.getDroplimitLong();
             int stepBefore = program.getPC();
             DropCost dropCosts = tronConfig.getDropCost();
             DataWord adjustedCallGas = null;
-
-            /*DEBUG #POC9 if( op.asInt() == 96 || op.asInt() == -128 || op.asInt() == 57 || op.asInt() == 115) {
-              //byte alphaone = 0x63;
-              //op = OpCode.code(alphaone);
-              gasCost = 3;
-            }
-
-            if( op.asInt() == -13 ) {
-              //byte alphaone = 0x63;
-              //op = OpCode.code(alphaone);
-              gasCost = 0;
-            }*/
 
             // Calculate fees and spend drops
             switch (op) {
@@ -264,11 +243,11 @@ public class VM {
                     BigInteger out = memNeeded(stack.get(stack.size() - opOff - 2), stack.get(stack.size() - opOff - 3)); // out offset+size
                     dropCost += calcMemDrop(dropCosts, oldMemSize, in.max(out), 0);
 
-                    if (dropCost > program.getDropLimit().longValueSafe()) {
-                        throw Program.Exception.notEnoughOpGas(op, callGasWord, program.getDropLimit());
+                    if (dropCost > program.getDroplimit().longValueSafe()) {
+                        throw Program.Exception.notEnoughOpGas(op, callGasWord, program.getDroplimit());
                     }
 
-                    DataWord gasLeft = program.getDrop().clone();
+                    DataWord gasLeft = program.getDroplimit().clone();
                     gasLeft.sub(new DataWord(dropCost));
                     //adjustedCallGas = tronConfig.getCallGas(op, callGasWord, gasLeft);
                     adjustedCallGas = new DataWord(tronConfig.getDropCost().getCALL());
@@ -288,8 +267,8 @@ public class VM {
 
                     BigInteger dataSize = stack.get(stack.size() - 2).value();
                     BigInteger dataCost = dataSize.multiply(BigInteger.valueOf(dropCosts.getLOG_DATA_GAS()));
-                    if (program.getDrop().value().compareTo(dataCost) < 0) {
-                        throw Program.Exception.notEnoughOpGas(op, dataCost, program.getDrop().value());
+                    if (program.getDroplimit().value().compareTo(dataCost) < 0) {
+                        throw Program.Exception.notEnoughOpGas(op, dataCost, program.getDroplimit().value());
                     }
 
                     dropCost = dropCosts.getLOG_GAS() +
@@ -308,15 +287,11 @@ public class VM {
             }
 
             //DEBUG System.out.println(" OP IS " + op.name() + " GASCOST IS " + gasCost + " NUM IS " + op.asInt());
-            program.spendGas(dropCost, op.name());
+            program.spendDrop(dropCost, op.name());
 
             // Log debugging line for VM
             //if (program.getNumber().intValue() == dumpBlock)
             //    this.dumpLine(op, gasBefore, gasCost + callGas, memWords, program);
-
-            if (vmHook != null) {
-                vmHook.step(program, op);
-            }
 
             // Execute operation
             switch (op) {
@@ -891,7 +866,7 @@ public class VM {
                 }
                 break;
                 case GASLIMIT: {
-                    DataWord droplimit = program.getDropLimit();
+                    DataWord droplimit = program.getDroplimit();
 
                     if (logger.isInfoEnabled())
                         hint = "gaslimit: " + droplimit;
@@ -1065,7 +1040,7 @@ public class VM {
                 }
                 break;
                 case GAS: {
-                    DataWord gas = program.getDrop();
+                    DataWord gas = program.getDroplimit();
 
                     if (logger.isInfoEnabled())
                         hint = "" + gas;
@@ -1129,12 +1104,13 @@ public class VM {
                     DataWord inOffset = program.stackPop();
                     DataWord inSize = program.stackPop();
 
+                    /*
                     if (logger.isInfoEnabled())
                         logger.info(logString, String.format("%5s", "[" + program.getPC() + "]"),
                                 String.format("%-12s", op.name()),
-                                program.getDrop().value(),
+                                program.getDroplimit().value(),
                                 program.getCallDeep(), hint);
-
+                    */
                     program.createContract(value, inOffset, inSize);
 
                     program.step();
@@ -1169,7 +1145,7 @@ public class VM {
                                 + " inSize: " + inDataSize.shortHex();
                         logger.info(logString, String.format("%5s", "[" + program.getPC() + "]"),
                                 String.format("%-12s", op.name()),
-                                program.getDrop().value(),
+                                program.getDroplimit().value(),
                                 program.getCallDeep(), hint);
                     }
 
@@ -1234,13 +1210,13 @@ public class VM {
             }
 
             program.setPreviouslyExecutedOp(op.val());
-
+            /*
             if (logger.isInfoEnabled() && !op.isCall())
                 logger.info(logString, String.format("%5s", "[" + program.getPC() + "]"),
                         String.format("%-12s",
-                                op.name()), program.getDrop().value(),
+                                op.name()), program.getDroplimit().value(),
                         program.getCallDeep(), hint);
-
+            */
             vmCounter++;
         } catch (RuntimeException e) {
             logger.warn("VM halted: [{}]", e);
@@ -1255,10 +1231,6 @@ public class VM {
 
     public void play(Program program) {
         try {
-            if (vmHook != null) {
-                vmHook.startPlay(program);
-            }
-
             if (program.byTestingSuite()) return;
 
             while (!program.isStopped()) {
@@ -1271,15 +1243,10 @@ public class VM {
             logger.error("\n !!! StackOverflowError: update your java run command with -Xss2M !!!\n", soe);
             System.exit(-1);
         } finally {
-            if (vmHook != null) {
-                vmHook.stopPlay(program);
-            }
+
         }
     }
 
-    public static void setVmHook(VMHook vmHook) {
-        VM.vmHook = vmHook;
-    }
 
     /**
      * Utility to calculate new total memory size needed for an operation.
@@ -1324,7 +1291,7 @@ public class VM {
         String addressString = Hex.toHexString(program.getOwnerAddress().getLast20Bytes());
         String pcString = Hex.toHexString(new DataWord(program.getPC()).getNoLeadZeroesData());
         String opString = Hex.toHexString(new byte[]{op.val()});
-        String gasString = Hex.toHexString(program.getDrop().getNoLeadZeroesData());
+        String gasString = Hex.toHexString(program.getDroplimit().getNoLeadZeroesData());
 
         dumpLogger.trace("{} {} {} {}", addressString, pcString, opString, gasString);
 

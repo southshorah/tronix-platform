@@ -17,6 +17,11 @@
  */
 package org.tron.common.vm.program;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.spongycastle.util.encoders.Hex;
+import org.tron.common.utils.ByteArray;
+import org.tron.common.utils.ByteUtil;
 import org.tron.common.vm.OpCode;
 
 import java.util.HashSet;
@@ -26,6 +31,7 @@ import java.util.Set;
  * Created by Anton Nashatyrev on 06.02.2017.
  */
 public class ProgramPrecompile {
+    private static final Logger logger = LoggerFactory.getLogger("PP");
     private static final int version = 1;
 
     private Set<Integer> jumpdest = new HashSet<>();
@@ -61,13 +67,43 @@ public class ProgramPrecompile {
             OpCode op = OpCode.code(ops[i]);
             if (op == null) continue;
 
-            if (op.equals(OpCode.JUMPDEST)) ret.jumpdest.add(i);
+            if (op.equals(OpCode.JUMPDEST)) {
+                logger.info("JUMPDEST:" + i);
+                ret.jumpdest.add(i);
+            }
 
             if (op.asInt() >= OpCode.PUSH1.asInt() && op.asInt() <= OpCode.PUSH32.asInt()) {
                 i += op.asInt() - OpCode.PUSH1.asInt() + 1;
             }
         }
         return ret;
+    }
+
+    public static byte[] getCode(byte[] ops) {
+        for (int i = 0; i < ops.length; ++i) {
+
+            OpCode op = OpCode.code(ops[i]);
+            if (op == null) continue;
+
+            if (op.equals(OpCode.RETURN)) {
+                logger.info("retrun");
+            }
+
+            if (op.equals(OpCode.RETURN) && i + 1 < ops.length && OpCode.code(ops[i + 1]) != null
+                    && OpCode.code(ops[i + 1]).equals(OpCode.STOP)) {
+                byte[] ret;
+                i++;
+                ret = new byte[ops.length - i -1];
+
+                System.arraycopy(ops, i + 1, ret, 0, ops.length - i -1);
+                return ret;
+            }
+
+            if (op.asInt() >= OpCode.PUSH1.asInt() && op.asInt() <= OpCode.PUSH32.asInt()) {
+                i += op.asInt() - OpCode.PUSH1.asInt() + 1;
+            }
+        }
+        return null;
     }
 
     public boolean hasJumpDest(int pc) {

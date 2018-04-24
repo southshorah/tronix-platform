@@ -41,7 +41,7 @@ public class StorageCapsule implements ProtoCapsule<StorageItem> {
     }
   }
 
-  private StorageCapsule(StorageItem cache) {
+  public StorageCapsule(StorageItem cache) {
     this.storage = cache;
   }
 
@@ -66,16 +66,17 @@ public class StorageCapsule implements ProtoCapsule<StorageItem> {
   }
 
   public DataWord get(DataWord key) {
-    if (!this.storage.containsItems(key.toString())) {
+    if (!this.storage.containsItems(key.toUTF8String())) {
       return null;
     }
 
-    DataWord value = new DataWord(this.storage.getItemsMap().get(key.toString()).toByteArray());
+    DataWord value = new DataWord(this.storage.getItemsMap().get(key.toUTF8String()).toByteArray());
     return value;
   }
 
   public void put(DataWord key, DataWord value) {
-    this.storage.getItemsMap().put(key.toString(), ByteString.copyFrom(value.getData()));
+    this.storage = this.storage.toBuilder().
+            putItems(key.toUTF8String(), ByteString.copyFrom(value.getData())).build();
   }
 
   @Override

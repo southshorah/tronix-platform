@@ -3,6 +3,8 @@ package org.tron.core.db;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.tron.core.capsule.ContractCapsule;
+import org.tron.protos.Contract;
+import org.tron.protos.Protocol;
 
 /**
  *
@@ -64,6 +66,27 @@ public class ContractStore extends TronStoreWithRevoking<ContractCapsule> {
    */
   public byte[] findContractByHash(byte[] trxHash) {
     return dbSource.getData(trxHash);
+  }
+
+  /**
+   *
+   * @param contractAddress
+   * @return
+   */
+  public Contract.ContractCreationContract.ABI getABI(byte[] contractAddress) {
+    byte[] value = dbSource.getData(contractAddress);
+    if (ArrayUtils.isEmpty(value)) {
+      return null;
+    }
+
+    ContractCapsule contractCapsule = new ContractCapsule(value);
+    Protocol.Transaction trx = contractCapsule.getInstance();
+    Contract.ContractCreationContract contractCreationContract = ContractCapsule.getCreationContractFromTransaction(trx);
+    if (contractCreationContract == null) {
+      return null;
+    }
+
+    return contractCreationContract.getAbi();
   }
 
 }

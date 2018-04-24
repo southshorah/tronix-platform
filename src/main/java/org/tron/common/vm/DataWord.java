@@ -25,6 +25,7 @@ import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.FastByteComparisons;
 import org.tron.core.db.ByteArrayWrapper;
 
+import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 
@@ -407,5 +408,13 @@ public class DataWord implements Comparable<DataWord> {
 
     public String asString(){
         return new String(getNoLeadZeroesData());
+    }
+
+    public String toUTF8String() {
+        try {
+            return new String(data, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            return null;
+        }
     }
 }

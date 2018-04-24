@@ -234,7 +234,7 @@ public class Manager {
     this.setContractStore(ContractStore.create("contract"));
     this.setCodeStore(CodeStore.create("code"));
     this.setStorageStore(StorageStore.create("storage"));
-    this.setRepositoryRoot(new RepositoryRoot(this, null));
+    this.setRepositoryImpl(new RepositoryRoot(this, null));
     this.setDynamicPropertiesStore(DynamicPropertiesStore.create("properties"));
     this.setWitnessController(WitnessController.createInstance(this));
     this.setBlockIndexStore(BlockIndexStore.create("block-index"));
@@ -987,11 +987,27 @@ public class Manager {
     this.storageStore = storageStore;
   }
 
-  public Repository getRepositoryRoot() {
+  /**
+   *
+   * @return
+   */
+  public RepositoryImpl getRepositoryImpl() {
     return repositoryRoot;
   }
 
-  public void setRepositoryRoot(RepositoryImpl repositoryRoot) {
+  /**
+   *
+   * @param repositoryRoot
+   */
+  public void setRepositoryImpl(RepositoryImpl repositoryRoot) {
     this.repositoryRoot = repositoryRoot;
+  }
+
+  /**
+   *
+   * @return
+   */
+  public ProgramInvokeFactory getProgramInvokeFactory() {
+    return programInvokeFactory;
   }
 }

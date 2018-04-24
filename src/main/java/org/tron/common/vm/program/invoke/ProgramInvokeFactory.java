@@ -35,7 +35,7 @@ public interface ProgramInvokeFactory {
                                       Transaction tx, Block block, Repository repository, BlockStore blockStore);
 
     ProgramInvoke createProgramInvoke(Program program, DataWord toAddress, DataWord callerAddress,
-                                      DataWord inValue, DataWord inGas,
+                                      DataWord inValue,
                                       long balanceInt, byte[] dataIn,
                                       Repository repository, BlockStore blockStore,
                                       boolean staticCall, boolean byTestingSuite);
