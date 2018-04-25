@@ -523,14 +523,14 @@ public class NodeImpl extends PeerConnectionDelegate implements Node {
       }
 
       //TODO:optimize here
-      if (!isDisconnected[0]) {
-        if (del.getHeadBlockId().getNum() - peer.getHeadBlockWeBothHave().getNum()
-            > 2 * NetConstants.HEAD_NUM_CHECK_TIME / ChainConstant.BLOCK_PRODUCED_INTERVAL
-            && peer.getConnectTime() < Time.getCurrentMillis() - NetConstants.HEAD_NUM_CHECK_TIME
-            && peer.getSyncBlockRequested().isEmpty()) {
-          isDisconnected[0] = true;
-        }
-      }
+//      if (!isDisconnected[0]) {
+//        if (del.getHeadBlockId().getNum() - peer.getHeadBlockWeBothHave().getNum()
+//            > 2 * NetConstants.HEAD_NUM_CHECK_TIME / ChainConstant.BLOCK_PRODUCED_INTERVAL
+//            && peer.getConnectTime() < Time.getCurrentMillis() - NetConstants.HEAD_NUM_CHECK_TIME
+//            && peer.getSyncBlockRequested().isEmpty()) {
+//          isDisconnected[0] = true;
+//        }
+//      }gi
 
       if (isDisconnected[0]) {
         //TODO use new reason
@@ -632,10 +632,7 @@ public class NodeImpl extends PeerConnectionDelegate implements Node {
         //TODO:save message cache again.
         getActivePeer().stream()
             .filter(p -> p.getAdvObjSpreadToUs().containsKey(block.getBlockId()))
-            .forEach(p -> {
-              p.setHeadBlockWeBothHave(block.getBlockId());
-              p.setHeadBlockTimeWeBothHave(block.getTimeStamp());
-            });
+            .forEach(p -> updateBlockWeBothHave(peer, block));
 
         //rebroadcast
         broadcast(new BlockMessage(block));
@@ -808,8 +805,7 @@ public class NodeImpl extends PeerConnectionDelegate implements Node {
     }
 
     if (block != null) {
-      peer.setHeadBlockWeBothHave(block.getBlockId());
-      peer.setHeadBlockTimeWeBothHave(block.getTimeStamp());
+      updateBlockWeBothHave(peer, block);
     }
   }
 
@@ -845,6 +841,16 @@ public class NodeImpl extends PeerConnectionDelegate implements Node {
                       + "\n Our head is " + peer.getSyncChainRequested().getKey().getLast()
                       .getString()
                       + "\n Peer give us is " + blockIdWeGet.peek().getString()));
+            }
+          }
+
+          if (del.getHeadBlockId().getNum() > 0){
+            long maxRemainTime = ChainConstant.CLOCK_MAX_DELAY + System.currentTimeMillis() - del.getHeadBlockTimeStamp();
+            long maxFutureNum =  maxRemainTime / ChainConstant.BLOCK_PRODUCED_INTERVAL + del.getHeadBlockId().getNum();
+            if (blockIdWeGet.peekLast().getNum() + msg.getRemainNum() > maxFutureNum){
+              throw new TraitorPeerException(
+                  "Block num " + blockIdWeGet.peekLast().getNum() + "+" + msg.getRemainNum()
+                      + " is gt future max num " + maxFutureNum + " from " + peer);
             }
           }
         }
@@ -1008,11 +1014,13 @@ public class NodeImpl extends PeerConnectionDelegate implements Node {
   }
 
   private void updateBlockWeBothHave(PeerConnection peer, BlockCapsule block) {
+    logger.info("update peer {} block both we have {}", peer.getNode().getHost(), block.getBlockId().getString());
     peer.setHeadBlockWeBothHave(block.getBlockId());
     peer.setHeadBlockTimeWeBothHave(block.getTimeStamp());
   }
 
   private void updateBlockWeBothHave(PeerConnection peer, BlockId blockId) {
+    logger.info("update peer {} block both we have, {}", peer.getNode().getHost(), blockId.getString());
     peer.setHeadBlockWeBothHave(blockId);
     long time = ((BlockMessage) del.getData(blockId, MessageTypes.BLOCK)).getBlockCapsule()
         .getTimeStamp();
@@ -1047,8 +1055,7 @@ public class NodeImpl extends PeerConnectionDelegate implements Node {
     peer.setNeedSyncFromPeer(true);
     peer.getSyncBlockToFetch().clear();
     peer.setUnfetchSyncNum(0);
-    peer.setHeadBlockWeBothHave(del.getGenesisBlock().getBlockId());
-    peer.setHeadBlockTimeWeBothHave(del.getGenesisBlock().getTimeStamp());
+    updateBlockWeBothHave(peer,del.getGenesisBlock());
     peer.setBanned(false);
     syncNextBatchChainIds(peer);
   }
