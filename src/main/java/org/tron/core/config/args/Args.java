@@ -174,6 +174,10 @@ public class Args {
   @Parameter(names = {"--trust-node"}, description = "Trust node addr")
   private String trustNodeAddr;
 
+  @Getter
+  @Setter
+  private boolean needReplay;
+
   public static void clearParam() {
     INSTANCE.outputDirectory = "output-directory";
     INSTANCE.help = false;

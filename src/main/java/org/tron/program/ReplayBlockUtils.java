@@ -17,12 +17,13 @@ import java.util.Iterator;
 @Slf4j
 public class ReplayBlockUtils {
 
-    static {
-        Args.setParam(new String[] {}, "config-beta.conf");
-    }
+//    static {
+//        Args.setParam(new String[] {}, "config-beta.conf");
+//    }
 
-    private static void backupAndCleanDb() {
-        String dataBaseDir = Args.getInstance().getLocalDBDirectory() + "/database";
+    private static void backupAndCleanDb(String dataBaseDir) {
+
+        dataBaseDir += "/database";
         String[] dbs = new String[] {
                 "account",
                 "asset-issue",
@@ -43,13 +44,18 @@ public class ReplayBlockUtils {
     }
 
     public static void main(String[] args) throws BadBlockException {
-        backupAndCleanDb();
-        replayBlock();
-    }
+        Args.setParam(new String[] {}, "config-beta.conf");
 
-    private static void replayBlock() throws BadBlockException {
         ApplicationContext context = new AnnotationConfigApplicationContext(DefaultConfig.class);
         Manager dbManager = context.getBean(Manager.class);
+        String dataBaseDir = Args.getInstance().getLocalDBDirectory();
+
+        replayBlock(dbManager, dataBaseDir);
+    }
+
+    public static void replayBlock(Manager dbManager, String dataBaseDiir) throws BadBlockException {
+        backupAndCleanDb(dataBaseDiir);
+
 
         long latestSolidifiedBlockNum = dbManager.getDynamicPropertiesStore().getLatestSolidifiedBlockNum();
         BlockStore localBlockStore = dbManager.getBlockStore();
@@ -84,5 +90,9 @@ public class ReplayBlockUtils {
             replayIndex++;
         }
         logger.info(String.format("replay local block complete, replay %d blocks, include Genesis", replayIndex-1));
+    }
+
+    public static void cleanLocalDb() {
+
     }
 }
