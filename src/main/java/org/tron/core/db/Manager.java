@@ -309,6 +309,20 @@ public class Manager {
     }
   }
 
+  public void resetDynamicProperties() {
+    this.dynamicPropertiesStore.saveLatestBlockHeaderNumber(0);
+    this.dynamicPropertiesStore.saveLatestBlockHeaderHash(
+            this.genesisBlock.getBlockId().getByteString());
+    this.dynamicPropertiesStore.saveLatestBlockHeaderTimestamp(
+            this.genesisBlock.getTimeStamp());
+    this.dynamicPropertiesStore.saveLatestSolidifiedBlockNum(0);
+
+    this.initAccount();
+    this.initWitness();
+    this.witnessController.initWits();
+    this.khaosDb.start(genesisBlock);
+  }
+
   /**
    * save account into database.
    */
@@ -611,6 +625,53 @@ public class Manager {
           applyBlock(newBlock);
           tmpDialog.commit();
         } catch (RevokingStoreIllegalStateException e) {
+          logger.debug(e.getMessage(), e);
+        }
+      }
+      logger.info("save block: " + newBlock);
+    }
+  }
+
+  public void replayBlock(final BlockCapsule block)
+          throws ValidateSignatureException, ContractValidateException, ContractExeException,
+          UnLinkedBlockException {
+
+    try (PendingManager pm = new PendingManager(this)) {
+
+      if (!block.generatedByMyself) {
+        if (!block.validateSignature()) {
+          logger.info("The siganature is not validated.");
+          // TODO: throw exception here.
+          return;
+        }
+
+        if (!block.calcMerkleRoot().equals(block.getMerkleRoot())) {
+          logger.info(
+                  "The merkler root doesn't match, Calc result is "
+                          + block.calcMerkleRoot()
+                          + " , the headers is "
+                          + block.getMerkleRoot());
+          // TODO:throw exception here.
+          return;
+        }
+      }
+
+      BlockCapsule newBlock = this.khaosDb.push(block);
+
+      // DB don't need lower block
+      if (getDynamicPropertiesStore().getLatestBlockHeaderHash() == null) {
+        if (newBlock.getNum() != 0) {
+          return;
+        }
+      } else {
+        if (newBlock.getNum() <= getDynamicPropertiesStore().getLatestBlockHeaderNumber()) {
+          return;
+        }
+        try (Dialog tmpDialog = revokingStore.buildDialog()) {
+          applyBlock(newBlock);
+          tmpDialog.commit();
+        } catch (RevokingStoreIllegalStateException e) {
+          e.printStackTrace();
           logger.debug(e.getMessage(), e);
         }
       }

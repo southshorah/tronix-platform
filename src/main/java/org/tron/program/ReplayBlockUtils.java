@@ -4,17 +4,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.tron.common.utils.FileUtil;
-import org.tron.core.Constant;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
 import org.tron.core.db.BlockStore;
-import org.tron.core.db.DynamicPropertiesStore;
 import org.tron.core.db.Manager;
 import org.tron.core.exception.*;
-import org.tron.core.services.RpcApiService;
-
-import java.io.File;
 import java.nio.file.Paths;
 import java.util.Iterator;
 
@@ -27,21 +22,13 @@ public class ReplayBlockUtils {
     }
 
     private static void backupAndCleanDb() {
-        String dataBaseDir = Args.getInstance().getOutputDirectory() + "/database";
-//        File blockDBFile = new File(dataBaseDir, "block");
-//        blockDBFile.renameTo(new File(dataBaseDir, "local_block"));
-//
-//        File propertyDBFile = new File(dataBaseDir, "properties");
-//        propertyDBFile.renameTo(new File(dataBaseDir, "local_properties"));
-
+        String dataBaseDir = Args.getInstance().getLocalDBDirectory() + "/database";
         String[] dbs = new String[] {
                 "account",
                 "asset-issue",
-//                "block",
                 "block-index",
                 "block_KDB",
                 "peers",
-//                "properties",
                 "trans",
                 "utxo",
                 "witness",
@@ -55,92 +42,47 @@ public class ReplayBlockUtils {
         }
     }
 
-    public static void test() {
-
-        ApplicationContext context = new AnnotationConfigApplicationContext(DefaultConfig.class);
-        Manager dbManager = context.getBean(Manager.class);
-
-        for (Iterator iterator = dbManager.getBlockStore().iterator(); iterator.hasNext();) {
-            BlockCapsule blockCapsule = (BlockCapsule) iterator.next();
-            System.err.println(blockCapsule);
-        }
-
-        for (Iterator iterator = dbManager.getAccountStore().iterator(); iterator.hasNext();) {
-            System.err.println(iterator.next());
-        }
-
-        System.err.println(dbManager.getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
-        System.err.println(dbManager.getDynamicPropertiesStore().getBlockFilledSlotsIndex());
-        System.err.println(dbManager.getDynamicPropertiesStore().getNextMaintenanceTime());
-
-        for (Iterator iterator = dbManager.getAssetIssueStore().iterator(); iterator.hasNext();) {
-            System.err.println(iterator.next());
-        }
-
-        for (Iterator iterator = dbManager.getPeersStore().iterator(); iterator.hasNext();) {
-            System.err.println(iterator.next());
-        }
-
-        for (Iterator iterator = dbManager.getTransactionStore().iterator(); iterator.hasNext();) {
-            System.err.println(iterator.next());
-        }
-    }
-
-
-    public static void main(String[] args) throws BadItemException, ItemNotFoundException, ContractExeException, UnLinkedBlockException, ValidateScheduleException, ContractValidateException, ValidateSignatureException, InterruptedException {
-//        backupAndCleanDb();
+    public static void main(String[] args) throws BadBlockException {
+        backupAndCleanDb();
         replayBlock();
-//        test();
-
-
-
-
     }
 
-    private static void replayBlock() throws ValidateSignatureException, ContractValidateException, ContractExeException, UnLinkedBlockException, ValidateScheduleException, InterruptedException, BadItemException, ItemNotFoundException {
+    private static void replayBlock() throws BadBlockException {
         ApplicationContext context = new AnnotationConfigApplicationContext(DefaultConfig.class);
         Manager dbManager = context.getBean(Manager.class);
-//        BlockStore localBlockStore = new BlockStore("local_block");
-//        DynamicPropertiesStore dynamicPropertiesStore = new DynamicPropertiesStore("local_properties");
 
+        long latestSolidifiedBlockNum = dbManager.getDynamicPropertiesStore().getLatestSolidifiedBlockNum();
         BlockStore localBlockStore = dbManager.getBlockStore();
-        DynamicPropertiesStore dynamicPropertiesStore = dbManager.getDynamicPropertiesStore();
 
+        logger.info(String.format("latestSolidifiedBlockNum is %d", latestSolidifiedBlockNum));
+        logger.info(String.format("%d local block to replay", latestSolidifiedBlockNum));
 
+        dbManager.resetDynamicProperties();
 
-        long localLatestNum = dynamicPropertiesStore.getLatestSolidifiedBlockNum();
-        long curLatestNum = dbManager.getDynamicPropertiesStore().getLatestSolidifiedBlockNum();
-        long iii = dbManager.getDynamicPropertiesStore().getLatestBlockHeaderNumber();
-
-        System.err.println("localLatestNum="+localLatestNum);
-        System.err.println("curLatestNum="+curLatestNum);
-        System.err.println("LatestHeaderNumber="+iii);
-
-//        dynamicPropertiesStore.reset();
-
-//        for (long j = 0; j < 100; j++) {
-//
-//
-//            System.err.println(dbManager.getBlockByNum(j));
-//        }
-
-
-        Iterator iter = localBlockStore.iterator();
-
+        Iterator iterator = localBlockStore.iterator();
         long replayIndex = 0;
-        while (iter.hasNext() && replayIndex <= localLatestNum) {
-            BlockCapsule blockCapsule = (BlockCapsule) iter.next();
-//            if (replayIndex <= curLatestNum) {
-//                replayIndex++;
-//                continue;
-//            }
-            dbManager.pushBlock((blockCapsule));
-
-            System.err.println(blockCapsule);
-            dbManager.getDynamicPropertiesStore()
-                    .saveLatestSolidifiedBlockNum(replayIndex);
-
+        while (iterator.hasNext() && replayIndex <= latestSolidifiedBlockNum) {
+            BlockCapsule blockCapsule = (BlockCapsule) iterator.next();
+            if (replayIndex == 0) {
+                // skip Genesis Block
+                replayIndex++;
+                continue;
+            }
+            try {
+                dbManager.replayBlock(blockCapsule);
+                dbManager.getDynamicPropertiesStore()
+                        .saveLatestSolidifiedBlockNum(replayIndex);
+            } catch (ValidateSignatureException e) {
+                throw new BadBlockException("validate signature exception");
+            } catch (ContractValidateException e) {
+                throw new BadBlockException("validate contract exception");
+            } catch (UnLinkedBlockException e) {
+                throw new BadBlockException("validate unlink exception");
+            } catch (ContractExeException e) {
+                throw new BadBlockException("validate contract exe exception");
+            }
             replayIndex++;
         }
+        logger.info(String.format("replay local block complete, replay %d blocks, include Genesis", replayIndex-1));
     }
 }

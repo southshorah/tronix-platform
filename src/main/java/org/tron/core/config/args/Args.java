@@ -50,6 +50,9 @@ public class Args {
   @Parameter(names = {"-d", "--output-directory"}, description = "Directory")
   private String outputDirectory = "output-directory";
 
+  @Parameter(names = {"-l", "--local-db"}, description = "Directory")
+  private String localDbDirectory = outputDirectory;
+
   @Getter
   @Parameter(names = {"-h", "--help"}, help = true, description = "HELP message")
   private boolean help = false;
@@ -363,6 +366,13 @@ public class Args {
       return this.outputDirectory + File.separator;
     }
     return this.outputDirectory;
+  }
+
+  public String getLocalDBDirectory() {
+    if (!this.localDbDirectory.equals("") && !this.localDbDirectory.endsWith(File.separator)) {
+      return this.localDbDirectory + File.separator;
+    }
+    return this.localDbDirectory;
   }
 
   private static List<Node> nodeActive(final com.typesafe.config.Config config) {
