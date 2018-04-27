@@ -4,12 +4,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.tron.common.utils.FileUtil;
+import org.tron.core.Constant;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
 import org.tron.core.db.BlockStore;
 import org.tron.core.db.Manager;
 import org.tron.core.exception.*;
+
 import java.nio.file.Paths;
 import java.util.Iterator;
 
@@ -17,14 +19,12 @@ import java.util.Iterator;
 @Slf4j
 public class ReplayBlockUtils {
 
-//    static {
-//        Args.setParam(new String[] {}, "config-beta.conf");
-//    }
-
-    private static void backupAndCleanDb(String dataBaseDir) {
+    public static void backupAndCleanDb(String dataBaseDir) {
 
         dataBaseDir += "/database";
-        String[] dbs = new String[] {
+
+
+        String[] dbs = new String[]{
                 "account",
                 "asset-issue",
                 "block-index",
@@ -37,36 +37,40 @@ public class ReplayBlockUtils {
                 "nodeId.properties"
         };
 
-        for (String db: dbs) {
+        for (String db : dbs) {
             System.out.println(Paths.get(dataBaseDir, db).toString());
             FileUtil.recursiveDelete(Paths.get(dataBaseDir, db).toString());
         }
     }
 
     public static void main(String[] args) throws BadBlockException {
-        Args.setParam(new String[] {}, "config-beta.conf");
+        Args.setParam(args, Constant.TESTNET_CONF);
+        Args cfgArgs = Args.getInstance();
+
+        String dataBaseDir = Args.getInstance().getLocalDBDirectory();
+        backupAndCleanDb(dataBaseDir);
 
         ApplicationContext context = new AnnotationConfigApplicationContext(DefaultConfig.class);
+
         Manager dbManager = context.getBean(Manager.class);
-        String dataBaseDir = Args.getInstance().getLocalDBDirectory();
+
 
         replayBlock(dbManager, dataBaseDir);
+
     }
 
     public static void replayBlock(Manager dbManager, String dataBaseDiir) throws BadBlockException {
-        backupAndCleanDb(dataBaseDiir);
-
-
+//        backupAndCleanDb(dataBaseDiir);
         long latestSolidifiedBlockNum = dbManager.getDynamicPropertiesStore().getLatestSolidifiedBlockNum();
         BlockStore localBlockStore = dbManager.getBlockStore();
 
-        logger.info(String.format("latestSolidifiedBlockNum is %d", latestSolidifiedBlockNum));
-        logger.info(String.format("%d local block to replay", latestSolidifiedBlockNum));
+        logger.info("local db latestSolidifiedBlockNum:" + latestSolidifiedBlockNum);
 
         dbManager.resetDynamicProperties();
-
         Iterator iterator = localBlockStore.iterator();
         long replayIndex = 0;
+
+        logger.info("replay solidified block start");
         while (iterator.hasNext() && replayIndex <= latestSolidifiedBlockNum) {
             BlockCapsule blockCapsule = (BlockCapsule) iterator.next();
             if (replayIndex == 0) {
@@ -78,6 +82,7 @@ public class ReplayBlockUtils {
                 dbManager.replayBlock(blockCapsule);
                 dbManager.getDynamicPropertiesStore()
                         .saveLatestSolidifiedBlockNum(replayIndex);
+                logger.info(String.format("replay block %d", replayIndex));
             } catch (ValidateSignatureException e) {
                 throw new BadBlockException("validate signature exception");
             } catch (ContractValidateException e) {
@@ -89,7 +94,19 @@ public class ReplayBlockUtils {
             }
             replayIndex++;
         }
-        logger.info(String.format("replay local block complete, replay %d blocks, include Genesis", replayIndex-1));
+
+        logger.info("delete non-solidified block start");
+        if (replayIndex != 1L || (replayIndex - 1 == latestSolidifiedBlockNum)) {
+            while (iterator.hasNext()) {
+                BlockCapsule blockCapsule = (BlockCapsule) iterator.next();
+                logger.info("delete :" + blockCapsule.toString());
+                dbManager.getBlockStore().delete(blockCapsule.getBlockId().getBytes());
+            }
+        }
+        logger.info("delete non-solidified block complete");
+        logger.info("replay solidified block complete");
+        logger.info("LatestSolidifiedBlockNum:" + dbManager.getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
+
     }
 
     public static void cleanLocalDb() {

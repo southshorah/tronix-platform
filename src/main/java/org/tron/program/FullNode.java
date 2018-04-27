@@ -24,17 +24,24 @@ public class FullNode {
     Args.setParam(args, Constant.TESTNET_CONF);
     Args cfgArgs = Args.getInstance();
 
-    ApplicationContext context = new AnnotationConfigApplicationContext(DefaultConfig.class);
+    if (cfgArgs.isNeedReplay()) {
+      String dataBaseDir = Args.getInstance().getLocalDBDirectory();
+      ReplayBlockUtils.backupAndCleanDb(dataBaseDir);
+    }
 
     if (cfgArgs.isHelp()) {
       logger.info("Here is the help message.");
       return;
     }
 
+    ApplicationContext context = new AnnotationConfigApplicationContext(DefaultConfig.class);
+
     if (cfgArgs.isNeedReplay()) {
       try {
-        Manager dbManager = context.getBean(Manager.class);
         String dataBaseDir = Args.getInstance().getLocalDBDirectory();
+        Manager dbManager = context.getBean(Manager.class);
+        logger.error(dbManager.getDynamicPropertiesStore().getLatestSolidifiedBlockNum() + "lastestSloid");
+        ReplayBlockUtils.backupAndCleanDb(dataBaseDir);
         ReplayBlockUtils.replayBlock(dbManager, dataBaseDir);
       } catch (BadBlockException e) {
         logger.error("bad block", e.getMessage());
