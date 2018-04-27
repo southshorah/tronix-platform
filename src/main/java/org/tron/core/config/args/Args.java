@@ -4,6 +4,23 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigObject;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.io.Writer;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.Properties;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -20,13 +37,6 @@ import org.tron.core.config.Configuration;
 import org.tron.core.config.Parameter.ChainConstant;
 import org.tron.core.db.AccountStore;
 
-import java.io.*;
-import java.net.InetAddress;
-import java.net.Socket;
-import java.net.URL;
-import java.util.*;
-import java.util.stream.Collectors;
-
 @Slf4j
 @NoArgsConstructor
 @Component
@@ -39,9 +49,6 @@ public class Args {
 
   @Parameter(names = {"-d", "--output-directory"}, description = "Directory")
   private String outputDirectory = "output-directory";
-
-  @Parameter(names = {"-l", "--local-db"}, description = "Directory")
-  private String localDbDirectory = outputDirectory;
 
   @Getter
   @Parameter(names = {"-h", "--help"}, help = true, description = "HELP message")
@@ -361,13 +368,6 @@ public class Args {
       return this.outputDirectory + File.separator;
     }
     return this.outputDirectory;
-  }
-
-  public String getLocalDBDirectory() {
-    if (!this.localDbDirectory.equals("") && !this.localDbDirectory.endsWith(File.separator)) {
-      return this.localDbDirectory + File.separator;
-    }
-    return this.localDbDirectory;
   }
 
   private static List<Node> nodeActive(final com.typesafe.config.Config config) {

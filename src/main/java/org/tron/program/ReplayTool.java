@@ -20,7 +20,7 @@ import org.tron.core.exception.ValidateSignatureException;
 
 
 @Slf4j
-public class ReplayBlockUtils {
+public class ReplayTool {
 
   public static void cleanDb(String dataBaseDir) {
     dataBaseDir += "/database";
@@ -45,15 +45,14 @@ public class ReplayBlockUtils {
 
   public static void main(String[] args) throws BadBlockException {
     Args.setParam(args, Constant.TESTNET_CONF);
-
-    String dataBaseDir = Args.getInstance().getLocalDBDirectory();
+    String dataBaseDir = Args.getInstance().getOutputDirectory();
     cleanDb(dataBaseDir);
 
     ApplicationContext context = new AnnotationConfigApplicationContext(DefaultConfig.class);
-
     Manager dbManager = context.getBean(Manager.class);
     replayBlock(dbManager);
   }
+
 
   public static void replayBlock(Manager dbManager) throws BadBlockException {
     long latestSolidifiedBlockNum = dbManager.getDynamicPropertiesStore()
@@ -79,6 +78,7 @@ public class ReplayBlockUtils {
         dbManager.getDynamicPropertiesStore()
             .saveLatestSolidifiedBlockNum(replayIndex);
         logger.info(String.format("replay block %d", replayIndex));
+        replayIndex++;
       } catch (ValidateSignatureException e) {
         throw new BadBlockException("validate signature exception");
       } catch (ContractValidateException e) {
@@ -88,11 +88,11 @@ public class ReplayBlockUtils {
       } catch (ContractExeException e) {
         throw new BadBlockException("validate contract exe exception");
       }
-      replayIndex++;
     }
 
+
     logger.info("delete non-solidified block start");
-    if (replayIndex != 1L || (replayIndex - 1 == latestSolidifiedBlockNum)) {
+    if (replayIndex != 1L && (replayIndex - 1 != latestSolidifiedBlockNum)) {
       while (iterator.hasNext()) {
         BlockCapsule blockCapsule = (BlockCapsule) iterator.next();
         logger.info("delete :" + blockCapsule.toString());
@@ -101,6 +101,8 @@ public class ReplayBlockUtils {
     }
     logger.info("delete non-solidified block complete");
     logger.info("replay solidified block complete");
+    logger.info("replay" + replayIndex);
+    logger.info("local LatestSolidifiedBlockNum:" + latestSolidifiedBlockNum);
     logger.info("LatestSolidifiedBlockNum:" + dbManager.getDynamicPropertiesStore()
         .getLatestSolidifiedBlockNum());
 
