@@ -45,7 +45,6 @@ public class ReplayBlockUtils {
 
     public static void main(String[] args) throws BadBlockException {
         Args.setParam(args, Constant.TESTNET_CONF);
-        Args cfgArgs = Args.getInstance();
 
         String dataBaseDir = Args.getInstance().getLocalDBDirectory();
         backupAndCleanDb(dataBaseDir);
@@ -53,14 +52,10 @@ public class ReplayBlockUtils {
         ApplicationContext context = new AnnotationConfigApplicationContext(DefaultConfig.class);
 
         Manager dbManager = context.getBean(Manager.class);
-
-
-        replayBlock(dbManager, dataBaseDir);
-
+        replayBlock(dbManager);
     }
 
-    public static void replayBlock(Manager dbManager, String dataBaseDiir) throws BadBlockException {
-//        backupAndCleanDb(dataBaseDiir);
+    public static void replayBlock(Manager dbManager) throws BadBlockException {
         long latestSolidifiedBlockNum = dbManager.getDynamicPropertiesStore().getLatestSolidifiedBlockNum();
         BlockStore localBlockStore = dbManager.getBlockStore();
 
@@ -109,7 +104,4 @@ public class ReplayBlockUtils {
 
     }
 
-    public static void cleanLocalDb() {
-
-    }
 }

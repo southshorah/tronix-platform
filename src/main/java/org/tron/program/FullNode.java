@@ -40,12 +40,14 @@ public class FullNode {
       try {
         String dataBaseDir = Args.getInstance().getLocalDBDirectory();
         Manager dbManager = context.getBean(Manager.class);
-        logger.error(dbManager.getDynamicPropertiesStore().getLatestSolidifiedBlockNum() + "lastestSloid");
+        logger.info(dbManager.getDynamicPropertiesStore().getLatestSolidifiedBlockNum() + "lastestSloid");
+
         ReplayBlockUtils.backupAndCleanDb(dataBaseDir);
-        ReplayBlockUtils.replayBlock(dbManager, dataBaseDir);
+
+        ReplayBlockUtils.replayBlock(dbManager);
       } catch (BadBlockException e) {
-        logger.error("bad block", e.getMessage());
-        logger.error("delete local db", e.getMessage());
+        logger.info("bad block", e.getMessage());
+        logger.info("delete local db", e.getMessage());
       }
     }
 
