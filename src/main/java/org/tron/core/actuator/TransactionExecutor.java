@@ -1,20 +1,3 @@
-/*
- * Copyright (c) [2016] [ <ether.camp> ]
- * This file is part of the ethereumJ library.
- *
- * The ethereumJ library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * The ethereumJ library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with the ethereumJ library. If not, see <http://www.gnu.org/licenses/>.
- */
 package org.tron.core.actuator;
 
 import com.google.protobuf.Any;
@@ -99,6 +82,44 @@ public class TransactionExecutor {
     private TrxType trxType = TRX_UNKNOWN_TYPE;
     private ExecuterType executerType = ET_UNKNOWN_TYPE;
 
+    /**
+     *
+     * @param trxCap
+     * @param tx
+     * @param coinbase
+     * @param track
+     * @param programInvokeFactory
+     * @param currentBlock
+     * @param executerType
+     */
+    public TransactionExecutor(TransactionCapsule trxCap, Transaction tx, byte[] coinbase, RepositoryImpl track,
+                               ProgramInvokeFactory programInvokeFactory, Block currentBlock, ExecuterType executerType) {
+
+        this.trxCap = trxCap;
+        this.tx = tx;
+        this.coinbase = coinbase;  // may be null
+        this.track = track;
+        //this.cacheTrack = track.startTracking();
+        this.programInvokeFactory = programInvokeFactory;
+        this.currentBlock = currentBlock;  // may be null
+        this.executerType = executerType;
+        // this.listener = listener;
+        Transaction.Contract.ContractType contractType = tx.getRawData().getContract(0).getType();
+        switch (contractType.getNumber()) {
+            case Transaction.Contract.ContractType.ContractCallContract_VALUE:
+                trxType = TRX_CONTRACT_CALL_TYPE;
+                break;
+            case Transaction.Contract.ContractType.ContractCreationContract_VALUE:
+                trxType = TRX_CONTRACT_CREATION_TYPE;
+                break;
+            default:
+                trxType = TRX_PRECOMPILED_TYPE;
+
+        }
+
+        withCommonConfig(CommonConfig.getDefault());
+    }
+
     public TransactionExecutor(TransactionCapsule trxCap, Transaction tx, byte[] coinbase, RepositoryImpl track,
                                ProgramInvokeFactory programInvokeFactory, Block currentBlock) {
 
@@ -158,7 +179,8 @@ public class TransactionExecutor {
     }
 
     private boolean doNext() {
-        if (executerType == ET_NORMAL_TYPE) {
+        if (executerType == ET_NORMAL_TYPE ||
+                executerType == ET_CONSTANT_TYPE) {
             return true;
         }
 
@@ -434,6 +456,7 @@ public class TransactionExecutor {
 
     public TransactionExecutor setConstantCall(boolean constantCall) {
         this.constantCall = constantCall;
+        executerType = ET_CONSTANT_TYPE;
         return this;
     }
 

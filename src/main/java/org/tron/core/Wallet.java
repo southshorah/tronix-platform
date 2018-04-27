@@ -20,6 +20,8 @@ package org.tron.core;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
+
+import java.util.Arrays;
 import java.util.List;
 
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -39,6 +41,7 @@ import org.tron.common.overlay.message.Message;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Sha256Hash;
 import org.tron.common.utils.Utils;
+import org.tron.common.vm.program.InternalTransaction;
 import org.tron.common.vm.program.ProgramResult;
 import org.tron.core.actuator.TransactionExecutionSummary;
 import org.tron.core.actuator.TransactionExecutor;
@@ -378,11 +381,11 @@ public class Wallet {
 
       int inputCount = entry.getInputsCount();
       StringBuffer sb = new StringBuffer();
-      sb.append(entry.getName().toString());
+      sb.append(entry.getName().toStringUtf8());
       sb.append("(");
       for (int k = 0; k < inputCount; k++) {
         ContractCreationContract.ABI.Entry.Param param = entry.getInputs(k);
-        sb.append(param.getType().toString());
+        sb.append(param.getType().toStringUtf8());
         if (k + 1 < inputCount) {
           sb.append(",");
         }
@@ -391,8 +394,12 @@ public class Wallet {
 
       byte[] funcSelector = new byte[4];
       System.arraycopy(Hash.sha3(sb.toString().getBytes()), 0, funcSelector, 0, 4);
-      if (funcSelector.equals(selector)) {
-        return true;
+      if (Arrays.equals(funcSelector, selector)) {
+        if (entry.getConstant() == true) {
+          return true;
+        } else {
+          return false;
+        }
       }
     }
 
@@ -426,7 +433,8 @@ public class Wallet {
         TransactionCapsule trxCap = new TransactionCapsule(contractCallContract, Transaction.Contract.ContractType.ContractCallContract);
 
         TransactionExecutor executor = new TransactionExecutor(trxCap, trxCap.getInstance(), null,
-                dbManager.getRepositoryImpl(), dbManager.getProgramInvokeFactory(), null).setConstantCall(true);
+                dbManager.getRepositoryImpl(), dbManager.getProgramInvokeFactory(), null,
+                InternalTransaction.ExecuterType.ET_CONSTANT_TYPE).setConstantCall(true);
         //executor.withCommonConfig()
         executor.init();
         executor.execute();
@@ -448,7 +456,7 @@ public class Wallet {
   }
 
   public ContractCreationContract getContract(GrpcAPI.BytesMessage bytesMessage) {
-    byte[] address = bytesMessage.toByteArray();
+    byte[] address = bytesMessage.getValue().toByteArray();
     AccountCapsule accountCapsule = dbManager.getAccountStore().get(address);
     if (accountCapsule == null || ArrayUtils.isEmpty(accountCapsule.getCodeHash())) {
       logger.error("Get contract failed, the account is not exist or the account does not have code hash!");

@@ -1,5 +1,6 @@
 package org.tron.core.db;
 
+import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.tron.common.crypto.Hash;
@@ -18,11 +19,36 @@ import org.tron.protos.Protocol.Block;
 import javax.annotation.Nullable;
 import java.util.*;
 
+/**
+ * @author Guo Yonggang
+ * @since 2018.04
+ */
 public class RepositoryImpl implements Repository, org.tron.core.facade.Repository {
 
+    protected Manager dbManager;
     protected RepositoryImpl parent;
     protected RepositoryImpl child;
-    protected Manager dbManager;
+
+    private AccountStore accountStore;
+    private TransactionStore transactionStore;
+    private BlockStore blockStore;
+    private UtxoStore utxoStore;
+    private WitnessStore witnessStore;
+    private AssetIssueStore assetIssueStore;
+    private DynamicPropertiesStore dynamicPropertiesStore;
+    private BlockIndexStore blockIndexStore;
+    private CodeStore codeStore;
+    private ContractStore contractStore;
+    private StorageStore storageStore;
+
+    /* Cache for current call contract */
+    protected HashMap<byte[], Any> accounCache = new HashMap<>();
+    protected HashMap<byte[], Any> codeCache = new HashMap<>();
+    protected HashMap<byte[], Any> transactionCache = new HashMap<>();
+    protected HashMap<byte[], Any> blockCache = new HashMap<>();
+    protected HashMap<byte[], Any> witnessCache = new HashMap<>();
+    protected HashMap<byte[], Any>
+
 
     @Autowired
     protected SystemProperties config = SystemProperties.getDefault();

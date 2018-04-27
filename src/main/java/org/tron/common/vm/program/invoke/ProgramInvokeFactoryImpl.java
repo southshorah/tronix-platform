@@ -117,27 +117,25 @@ public class ProgramInvokeFactoryImpl implements ProgramInvokeFactory {
             // byte[] data = tx.isContractCreation() ? ByteUtil.EMPTY_BYTE_ARRAY : nullToEmpty(tx.getData());
             data = contract.getData().toByteArray();
 
-            /***    PREVHASH  op  ***/
-            // byte[] lastHash = block.getParentHash();
-            lastHash = block.getBlockHeader().getRawDataOrBuilder().getParentHash().toByteArray();
+            switch (executerType) {
+                case ET_CONSTANT_TYPE:
+                    break;
+                case ET_PRE_TYPE:
+                    break;
+                case ET_NORMAL_TYPE:
+                    /***    PREVHASH  op  ***/
+                    lastHash = block.getBlockHeader().getRawDataOrBuilder().getParentHash().toByteArray();
+                    /***   COINBASE  op ***/
+                    coinbase = block.getBlockHeader().getRawDataOrBuilder().getWitnessAddress().toByteArray();
+                    /*** TIMESTAMP  op  ***/
+                    timestamp = block.getBlockHeader().getRawDataOrBuilder().getTimestamp();
+                    /*** NUMBER  op  ***/
+                    number = block.getBlockHeader().getRawDataOrBuilder().getNumber();
+                    break;
+                default:
+                    break;
+            }
 
-            /***   COINBASE  op ***/
-            // byte[] coinbase = block.getCoinbase();
-            coinbase = block.getBlockHeader().getRawDataOrBuilder().getWitnessAddress().toByteArray();
-
-            /*** TIMESTAMP  op  ***/
-            // long timestamp = block.getTimestamp();
-            timestamp = block.getBlockHeader().getRawDataOrBuilder().getTimestamp();
-
-            /*** NUMBER  op  ***/
-            // long number = block.getNumber();
-            number = block.getBlockHeader().getRawDataOrBuilder().getNumber();
-
-            /*** DIFFICULTY  op  ***/
-            // byte[] difficulty = block.getDifficulty();
-
-            /*** GASLIMIT op ***/
-            // byte[] gaslimit = block.getGasLimit();
             return new ProgramInvokeImpl(address, origin, caller, balance, callValue, data,
                     lastHash, coinbase, timestamp, number, repository, blockStore);
         } else {

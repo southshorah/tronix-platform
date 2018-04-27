@@ -48,6 +48,7 @@ public class InternalTransaction extends VMTransaction {
     public enum ExecuterType {
         ET_PRE_TYPE,
         ET_NORMAL_TYPE,
+        ET_CONSTANT_TYPE,
         ET_UNKNOWN_TYPE,
     }
 
