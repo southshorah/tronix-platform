@@ -26,7 +26,7 @@ public class FullNode {
 
     if (cfgArgs.isNeedReplay()) {
       String dataBaseDir = Args.getInstance().getLocalDBDirectory();
-      ReplayBlockUtils.backupAndCleanDb(dataBaseDir);
+      ReplayBlockUtils.cleanDb(dataBaseDir);
     }
 
     if (cfgArgs.isHelp()) {
@@ -42,12 +42,11 @@ public class FullNode {
         Manager dbManager = context.getBean(Manager.class);
         logger.info(dbManager.getDynamicPropertiesStore().getLatestSolidifiedBlockNum() + "lastestSloid");
 
-        ReplayBlockUtils.backupAndCleanDb(dataBaseDir);
+        ReplayBlockUtils.cleanDb(dataBaseDir);
 
         ReplayBlockUtils.replayBlock(dbManager);
       } catch (BadBlockException e) {
         logger.info("bad block", e.getMessage());
-        logger.info("delete local db", e.getMessage());
       }
     }
 
