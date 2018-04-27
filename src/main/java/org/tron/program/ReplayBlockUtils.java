@@ -1,5 +1,7 @@
 package org.tron.program;
 
+import java.nio.file.Paths;
+import java.util.Iterator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
@@ -10,8 +12,6 @@ import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
 import org.tron.core.db.BlockStore;
 import org.tron.core.db.Manager;
-import java.nio.file.Paths;
-import java.util.Iterator;
 import org.tron.core.exception.BadBlockException;
 import org.tron.core.exception.ContractExeException;
 import org.tron.core.exception.ContractValidateException;
